@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Beef Cattle Drought Tracker</title>
 <meta name="description" content="This week's U.S. Drought Monitor by county, the share of beef cows in drought, and where each county stands on Livestock Forage Disaster Program (LFP) payments.">
-<meta name="version" content="15">
+<meta name="version" content="16">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -114,6 +114,10 @@ h1 { font: 700 clamp(28px, 5vw, 40px)/1.08 var(--display); margin: 0; text-wrap:
        font-weight: 600; font-size: 15px; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
 .tab:hover { background: var(--accent-soft); color: var(--ink); }
 .tab[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+@media (max-width: 480px) {   /* two rows of two, so no tab hides off screen */
+  .tabs .wrap { display: grid; grid-template-columns: 1fr 1fr; padding-block: 6px; }
+  .tab { padding: 7px 8px; font-size: 14px; text-align: center; }
+}
 
 /* panels */
 main { padding-block: 26px 40px; }
@@ -241,6 +245,10 @@ table.pt tr[aria-selected="true"] { background: var(--accent-soft); box-shadow: 
 .tl-dot { position: absolute; top: 5px; min-width: 24px; height: 24px; padding: 0 7px; transform: translateX(-50%);
           border-radius: 12px; background: var(--accent); color: var(--accent-ink); font: 700 12px/24px var(--body);
           text-align: center; font-style: normal; white-space: nowrap; box-shadow: 0 0 0 2px var(--surface); }
+.tl-track.two { margin-top: 30px; }
+.tl-dot.up { top: -25px; }
+.tl-dot.up::after { content: ""; position: absolute; left: 50%; top: 24px; width: 2px; height: 6px; margin-left: -1px;
+                    background: var(--accent); }
 .tl-now { position: absolute; top: 8px; width: 2px; height: 18px; margin-left: -1px; background: var(--ink); }
 .tl-ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
 .tl-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; font-size: 14px; }
@@ -558,7 +566,8 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     get(k) { try { return localStorage.getItem("dlfp." + k); } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem("dlfp." + k, v); } catch (e) { /* private window */ } }
   };
-  const S = { tab: "map", st: "", fips: "", pasture: store.get("pasture") || "", cows: +(store.get("cows") || 50) };
+  const S = { tab: "map", st: "", fips: "", pasture: store.get("pasture") || "", cows: +(store.get("cows") || 50),
+              picks: (() => { try { return JSON.parse(store.get("picks")) || {}; } catch (e) { return {}; } })() };
   let US = null, GEO = null;
   const SGEO = {}, LFP = {};      // LFP["2026/MS"]: one file per state and live program year
   // the program years live on this map (two from October through March 1), the one
@@ -809,21 +818,25 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
   function progress(p, lv) {
     if (lv === 1) return `${Math.min(p.d2, 4)} of 4 now${pips(Math.min(p.d2, 4), 4)}`;
     if (lv === 2) return `${p.d8} of the last 8 weeks`;
-    if (lv === 3) return p.worst >= 0 ? `Worst so far: ${cat(p.worst).code}` : "No drought so far";
+    if (lv === 3) return p.worst >= 0 ? `Worst so far: ${cat(p.worst).code}` : "No drought yet in this grazing period";
     if (lv === 4) return `${Math.min(p.d3, 4)} of 4 weeks at D3${pips(Math.min(p.d3, 4), 4)}`;
     return `${Math.min(p.d4, 4)} of 4 weeks at D4${pips(Math.min(p.d4, 4), 4)}`;
   }
+  // a grazing period has begun once the latest map's week (the map date and the six days
+  // after) reaches its start: that week's drought counts toward it, as in usdm/lfp.py
+  const begun = p => { const d = parse(US.meta.map_date); return parse(p.s) <= new Date(d.getFullYear(), d.getMonth(), d.getDate() + 6); };
   function ladder(p) {
-    const nx = Object.fromEntries(p.next), hit = Object.fromEntries(p.hit);
+    const nx = Object.fromEntries(p.next), hit = Object.fromEntries(p.hit), pre = !begun(p);
     return `<ol class="ladder">${LEVELS.map(([lv, short, long]) => {
       const met = p.lv >= lv;
       let st;
       if (met) st = `<span class="ok">Reached ${fmt(hit[lv], false)}${lv > p.cap ? `; capped at ${p.cap} by the grazing period` : ""}</span>`;
       else if (lv > p.cap) st = `<span class="small">Grazing period too short for ${lv}</span>`;
+      else if (pre) st = "";       // drought before the period starts doesn't count: no weeks to go yet
       else if (nx[lv] == null) st = `<span class="small">${p.left ? "Can't happen before" : "Grazing period ended"} ${p.left ? fmt(p.e, false) : ""}</span>`;
       else st = `<span class="off">${plural(nx[lv], "more week")} at ${cat(NEED[lv]).code}</span>`;
       return `<li class="${met ? "met" : ""}"><div class="lv">${lv}<small>${lv === 1 ? "month" : "months"}</small></div>
-        <div class="what"><b>${short}</b><span>${long}. ${met ? "" : progress(p, lv)}</span></div><div class="st">${st}</div></li>`;
+        <div class="what"><b>${short}</b><span>${long}. ${met || pre ? "" : progress(p, lv)}</span></div><div class="st">${st}</div></li>`;
     }).join("")}</ol>`;
   }
   function timeline(p) {
@@ -858,7 +871,23 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
   }
   // two program years overlap from October through March 1: a switch between
   // them, and a line on why the one picked matters now
-  function yearHead(yr, Y) {
+  // levels reached a few weeks apart can overlap on a narrow track: lift each marker
+  // that would overlap the one before it to a row above (needs the LFP tab on screen)
+  function unstackDots() {
+    document.querySelectorAll("#lfpbody .tl-track").forEach(tr => {
+      const dots = [...tr.querySelectorAll(".tl-dot")];
+      dots.forEach(d => d.classList.remove("up"));
+      let right = -Infinity, upRight = -Infinity;
+      for (const d of dots) {
+        const b = d.getBoundingClientRect();
+        if (b.left < right + 3 && b.left >= upRight + 3) { d.classList.add("up"); upRight = b.right; }
+        else right = Math.max(right, b.right);
+      }
+      tr.classList.toggle("two", dots.some(d => d.classList.contains("up")));
+    });
+  }
+  window.addEventListener("resize", () => { if (S.tab === "lfp") unstackDots(); });
+  function yearHead(yr, Y, all) {
     const lf = US.meta.lfp, mapYear = parse(US.meta.map_date).getFullYear();
     if (lf.years.length < 2) return "";
     const seg = `<div class="ctrls"><div class="seg" role="group" aria-label="LFP program year">${lf.years.map(y =>
@@ -866,10 +895,21 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     const why = yr < mapYear
       ? `<p class="callout">The ${yr} grazing periods have all ended. FSA's deadline for ${yr} applications is ${fmt(Y.deadline)}.</p>`
       : yr > mapYear
-        ? `<p class="note">The ${yr} program year has begun for pasture types grazed in fall and winter, such as small grains
-            and annual ryegrass; most ${yr} grazing periods haven't started yet.${Y.rate ? "" : ` FSA hasn't set the ${yr} payment
+        ? `<p class="note">${aheadNote(yr, all)}${Y.rate ? "" : ` FSA hasn't set the ${yr} payment
             rate, so no dollar estimate is shown.`}</p>` : "";
     return seg + why;
+  }
+  // which of the county's next-year grazing periods have started, or when the first one does
+  function aheadNote(yr, all) {
+    if (!all) return `The ${yr} program year has begun for pasture types grazed in fall and winter, such as small grains
+      and annual ryegrass; most ${yr} grazing periods haven't started yet.`;
+    const uniq = xs => [...new Set(xs)], name = esc(cname(S.fips));
+    const on = uniq(all.filter(begun).map(p => p.t.toLowerCase()));
+    if (on.length) return `The ${yr} program year has begun in ${name} for ${esc(listing(on))}${
+      on.length < uniq(all.map(p => p.t)).length ? `; its other ${yr} grazing periods haven't started yet` : ""}.`;
+    const first = all.map(p => p.s).sort()[0];
+    const ts = uniq(all.filter(p => p.s === first).map(p => p.t.toLowerCase()));
+    return `No ${yr} grazing period has started in ${name} yet. The earliest ${ts.length > 1 ? "are" : "is"} ${esc(listing(ts))}, starting ${fmt(first)}.`;
   }
   function wireYears(box) {
     box.querySelectorAll("[data-ly]").forEach(b => b.onclick = () => { S.ly = +b.dataset.ly; drawLFP(); });
@@ -880,8 +920,9 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     $("#lfp-h").textContent = S.fips ? `Where ${cname(S.fips)} stands on LFP payments` : "Where your county stands on LFP payments";
     if (!S.st) { box.innerHTML = `<p class="empty card">Pick your state and county at the top of the page.</p>`; return; }
     if (meta.no_lfp[S.st]) { box.innerHTML = `<p class="callout">${esc(meta.no_lfp[S.st])} Check FSA's list of eligible counties for ${esc(meta.states[S.st])}.</p>`; return; }
-    const yr = lfpYear(), Y = meta.lfp.by[yr], head = yearHead(yr, Y);
-    const show = html => { box.innerHTML = head + html; wireYears(box); };
+    const yr = lfpYear(), Y = meta.lfp.by[yr];
+    let head = yearHead(yr, Y);
+    const show = html => { box.innerHTML = head + html; wireYears(box); unstackDots(); };
     const L = lfpOf(S.st, yr);
     if (!L) { show(`<p class="empty card">LFP grazing periods for ${yr} aren't available here yet. Check FSA's weekly list.</p>`); return; }
     if (!S.fips) { show(`<p class="empty card">Pick your county at the top of the page, or on the map.</p>`); return; }
@@ -893,8 +934,15 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
       return;
     }
     const all = c.o.flatMap(o => o.p.map(p => ({ ...p, office: o.name, fsaCode: o.fsa }))).sort(byUse);
-    const sel = all.find(p => p.t === S.pasture && (!S.office || p.fsaCode === S.office)) || all.find(p => p.t === S.pasture)
-      || all.find(p => p.t === ORDER[0]) || all.find(p => p.t === ORDER[1]) || all[0];
+    head = yearHead(yr, Y, all);
+    // the row picked for this program year; else full season pasture, or, if its period hasn't
+    // started, the pasture type whose period starts first. A pick from before picks were kept
+    // by year counts for the years under way.
+    const mine = S.picks[yr] || (S.pasture && yr <= parse(meta.map_date).getFullYear() ? { t: S.pasture } : null);
+    const usual = all.find(p => p.t === ORDER[0]) || all.find(p => p.t === ORDER[1]) || all[0];
+    const earliest = [...all].sort((a, b) => a.s.localeCompare(b.s) || byUse(a, b))[0];
+    const sel = (mine && (all.find(p => p.t === mine.t && (!mine.o || p.fsaCode === mine.o)) || all.find(p => p.t === mine.t)))
+      || (begun(usual) ? usual : earliest);
     const best = Math.max(...all.map(p => p.pm));
     const bestTypes = all.filter(p => p.pm === best).map(p => p.t.toLowerCase());
     const rate = Y.rate;
@@ -922,7 +970,9 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     const nextLv = LEVELS.find(([lv]) => lv > sel.lv && lv <= sel.cap && nx[lv] != null);
     const nextTxt = nextLv ? `${plural(nx[nextLv[0]], "more week")} at ${cat(NEED[nextLv[0]]).code} would make it ${months(nextLv[0])}`
       : sel.lv >= sel.cap ? "The most this grazing period allows" : sel.left ? "No higher level is possible before the grazing period ends" : "The grazing period has ended";
-    const notYet = parse(sel.s) > parse(meta.map_date) ? `The grazing period starts ${fmt(sel.s)}. ` : "";
+    const pre = !begun(sel);
+    const status = pre ? `Counting starts ${fmt(sel.s)}. Drought before then doesn't count toward ${yr} LFP.`
+      : `${nextTxt}${sel.left ? `; ${plural(sel.left, "weekly map")} left, through ${fmt(sel.e)}` : ""}.`;
     show(`
       <div class="card answer">
         ${rate ? `<div><p class="k">Estimated LFP payment, ${esc(sel.t.toLowerCase())}</p>
@@ -933,7 +983,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
           cows: <b id="cowtot">${money0(net(sel.pm * rate.month * S.cows))}</b></p></div>` : ""}
         <div><p class="k">Payment months triggered, ${esc(sel.t.toLowerCase())}</p>
           <p class="v">${sel.pm} <span style="font-size:18px">of ${sel.cap}</span></p>
-          <p class="s">${notYet}${nextTxt}${sel.left ? `; ${plural(sel.left, "map")} left in the grazing period` : ""}.</p></div>
+          <p class="s">${status}</p></div>
         <div><p class="k">Most of any pasture type</p><p class="v">${best} <span style="font-size:18px">${best === 1 ? "month" : "months"}</span></p>
           <p class="s">${best ? `${listing(bestTypes)}` : "No pasture type has reached a payment level yet"}</p></div>
       </div>
@@ -949,15 +999,16 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
           <p class="note">Grazing period ${span(sel.s, sel.e).replace(" – ", " to ")}${sel.cap < 5 ? `, long enough for at most ${plural(sel.cap, "payment month")}` : ""}.
           Dates are when the Drought Monitor reached each level, not payment dates.</p></div>
         ${timeline(sel)}
-        <div><h3 style="font-size:15px">The five levels, and what the next one takes</h3>
-          <p class="note">Weeks to go assume every remaining week is at the category shown.</p></div>
+        <div><h3 style="font-size:15px">The five levels${pre ? "" : ", and what the next one takes"}</h3>
+          <p class="note">${pre ? `Only Drought Monitor weeks from ${fmt(sel.s)} on count.`
+            : "Weeks to go assume every remaining week is at the category shown."}</p></div>
         ${ladder(sel)}
         <div><h3 style="font-size:15px;margin-bottom:6px">Worst category each week, ${span(L.weeks[0], meta.map_date).replace(" – ", " to ")}</h3>
           ${strip(c, sel)}
           <p class="note" style="margin-top:6px">Tall bars are weeks in this pasture type's grazing period.</p></div>
       </div>`);
     box.querySelectorAll("table.pt tbody tr").forEach(tr => {
-      const choose = () => { S.pasture = tr.dataset.t; S.office = tr.dataset.o; store.set("pasture", S.pasture); drawLFP(); };
+      const choose = () => { S.picks[yr] = { t: tr.dataset.t, o: tr.dataset.o }; store.set("picks", JSON.stringify(S.picks)); drawLFP(); };
       tr.onclick = choose;
       tr.onkeydown = ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); choose(); } };
     });
@@ -996,7 +1047,9 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
   const chartDims = () => window.matchMedia("(max-width: 640px)").matches
     ? { W: 460, H: 300, L: 40, R: 68, T: 16, B: 28 } : { W: 900, H: 340, L: 46, R: 96, T: 20, B: 32 };
   function peaks(vs, weeks, lastYear) {
-    // the three highest local peaks, at least two years apart, none in the year drawn in maroon
+    // local peaks at least two years apart, none in the year drawn in maroon, highest first;
+    // equal peaks (a state at 100% in several droughts) rank by how many weeks they held
+    // that level, then the most recent
     const n = vs.length, gmax = Math.max(...vs.filter(v => v != null)), cand = [], out = [];
     for (let i = 0; i < n; i++) {
       const v = vs[i]; if (v == null || v < 0.4 * gmax || weeks[i].slice(0, 4) === lastYear) continue;
@@ -1005,8 +1058,11 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
         if (vs[j] != null && (vs[j] > v || (vs[j] === v && j < i))) { top = false; break; }
       if (top) cand.push(i);
     }
-    cand.sort((a, b) => vs[b] - vs[a]);
-    for (const i of cand) { if (out.every(k => Math.abs(k - i) > 104)) out.push(i); if (out.length === 3) break; }
+    const held = i => { let c = 0;
+      for (let j = Math.max(0, i - 52); j <= Math.min(n - 1, i + 52); j++) if (vs[j] != null && vs[j] >= vs[i] - 0.5) c++;
+      return c; };
+    cand.sort((a, b) => Math.round(vs[b]) - Math.round(vs[a]) || held(b) - held(a) || b - a);
+    for (const i of cand) if (out.every(k => Math.abs(k - i) > 104)) out.push(i);
     return out;
   }
   function cowChart(id, vals, from) {
@@ -1049,10 +1105,18 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     const now = vs[n - 1];
     const nowLine = now == null ? "" : `<line class="nowline" x1="${L}" x2="${W - R + 6}" y1="${y(now).toFixed(1)}" y2="${y(now).toFixed(1)}"></line>
       <text class="nowlab" x="${W - R + 10}" y="${(y(now) + 4).toFixed(1)}">Now: ${pct(now)}</text>`;
-    const labs = n > 160 ? peaks(vs, weeks, lastYear).map(i => {
-      const d = parse(weeks[i]), px = Math.max(L + 44, Math.min(W - R - 44, x(i)));
-      return `<text class="peak" x="${px.toFixed(1)}" y="${Math.max(T + 10, y(vs[i]) - 8).toFixed(1)}" text-anchor="middle">${MON[d.getMonth()]} ${d.getFullYear()}: ${pct(vs[i])}</text>`;
-    }).join("") : "";
+    // up to three labels for the biggest droughts (within 70% of the highest peak), skipping any
+    // that would sit over or under one already placed (on phones, mostly)
+    const placed = [], pk = n > 160 ? peaks(vs, weeks, lastYear) : [];
+    for (const i of pk) {
+      if (vs[i] < 0.7 * vs[pk[0]]) break;
+      const d = parse(weeks[i]), txt = `${MON[d.getMonth()]} ${d.getFullYear()}: ${pct(vs[i])}`;
+      const w = txt.length * 6.6, px = Math.max(L + w / 2, Math.min(W - R - w / 2, x(i))), py = Math.max(T + 10, y(vs[i]) - 8);
+      if (placed.some(q => Math.abs(q.px - px) < (q.w + w) / 2 + 6)) continue;
+      placed.push({ px, py, w, txt });
+      if (placed.length === 3) break;
+    }
+    const labs = placed.map(q => `<text class="peak" x="${q.px.toFixed(1)}" y="${q.py.toFixed(1)}" text-anchor="middle">${q.txt}</text>`).join("");
     return `<svg class="chart" id="${id}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Share of beef cows ${MEASURES[CW.measure]} by week">
       ${grid}${ticks}
       <path class="area" d="${area(all)}"></path>
@@ -1234,6 +1298,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     $("#map").hidden = t !== "map"; $("#lfp").hidden = t !== "lfp"; $("#about").hidden = t !== "about";
     $("#cows").hidden = t !== "cows";
     if (t === "cows") loadBeef().then(drawCows);
+    if (t === "lfp") unstackDots();
     writeHash();
     if (scroll) window.scrollTo({ top: $("main").getBoundingClientRect().top + window.scrollY - $(".tabs").offsetHeight,
                                   behavior: "smooth" });
