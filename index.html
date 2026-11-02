@@ -1,0 +1,1255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="robots" content="noindex">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Beef Cattle Drought Tracker</title>
+<meta name="description" content="This week's U.S. Drought Monitor by county, the share of beef cows in drought, and where each county stands on Livestock Forage Disaster Program (LFP) payments.">
+<meta name="version" content="12">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<style>
+/* fonts bundled in fonts/ (Fontsource, OFL); nothing is loaded from outside the site */
+@font-face { font-family: "Bitter"; font-weight: 600; font-style: normal; font-display: swap; src: url(fonts/bitter-latin-600-normal.woff2) format("woff2"); }
+@font-face { font-family: "Bitter"; font-weight: 700; font-style: normal; font-display: swap; src: url(fonts/bitter-latin-700-normal.woff2) format("woff2"); }
+@font-face { font-family: "Public Sans"; font-weight: 400; font-style: normal; font-display: swap; src: url(fonts/public-sans-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "Public Sans"; font-weight: 500; font-style: normal; font-display: swap; src: url(fonts/public-sans-latin-500-normal.woff2) format("woff2"); }
+@font-face { font-family: "Public Sans"; font-weight: 600; font-style: normal; font-display: swap; src: url(fonts/public-sans-latin-600-normal.woff2) format("woff2"); }
+@font-face { font-family: "Public Sans"; font-weight: 700; font-style: normal; font-display: swap; src: url(fonts/public-sans-latin-700-normal.woff2) format("woff2"); }
+/* Layout: the cattle dashboard's maroon masthead and pickers, then a map tab
+   and an LFP tab. Drought colors are the Drought Monitor's own (D0-D4). */
+:root {
+  --bg: #f7f5f5;
+  --surface: #ffffff;
+  --ink: #1c1c1c;
+  --ink-2: #4a4446;
+  --muted: #6f686a;
+  --rule: #e4dfe0;
+  --accent: #5d1725;      /* MSU maroon */
+  --accent-ink: #ffffff;
+  --accent-soft: #f3e9eb;
+  --link: #8a2236;
+  --focus: #c99700;
+  --ok: #2e6b3f;
+  --ok-bg: #e6f2e9;
+  --warn-bg: #fff3d6;
+  --warn-ink: #7a4600;
+  --none: #e9e6e7;        /* no drought */
+  --area: #c8ccce;        /* chart fill */
+  --border: #ffffff;      /* county borders */
+  --state-line: #3b3436;
+  --d0: #ffff00; --d1: #fcd37f; --d2: #ffaa00; --d3: #e60000; --d4: #730000;
+  --display: "Bitter", Georgia, "Times New Roman", serif;
+  --body: "Public Sans", Arial, Helvetica, sans-serif;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151112; --surface: #1f191b; --ink: #f1ecee; --ink-2: #cfc6c9; --muted: #a59a9e;
+    --rule: #3a3134; --accent: #6e1d2e; --accent-soft: #33212a; --link: #f0a3b3; --focus: #e2b93b;
+    --ok: #86c995; --ok-bg: #1d3324; --warn-bg: #3b2c0e; --warn-ink: #f6c56a;
+    --none: #3a3335; --area: #4e474a; --border: #1f191b; --state-line: #f1ecee; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151112; --surface: #1f191b; --ink: #f1ecee; --ink-2: #cfc6c9; --muted: #a59a9e;
+  --rule: #3a3134; --accent: #6e1d2e; --accent-soft: #33212a; --link: #f0a3b3; --focus: #e2b93b;
+  --ok: #86c995; --ok-bg: #1d3324; --warn-bg: #3b2c0e; --warn-ink: #f6c56a;
+  --none: #3a3335; --area: #4e474a; --border: #1f191b; --state-line: #f1ecee; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 400 16px/1.5 var(--body);
+       -webkit-font-smoothing: antialiased; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+               z-index: 10; background: var(--bg); }
+.wrap { max-width: 1080px; margin: 0 auto;
+        padding-left: max(16px, env(safe-area-inset-left, 0px));
+        padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+a { color: var(--link); }
+
+/* masthead */
+.mast { background: var(--accent); color: var(--accent-ink); }
+.mast .wrap { padding-block: 22px 20px; display: grid; gap: 14px;
+              grid-template-columns: 1fr auto; align-items: end; }
+.kicker { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+          opacity: .8; margin: 0 0 4px; }
+h1 { font: 700 clamp(28px, 5vw, 40px)/1.08 var(--display); margin: 0; text-wrap: balance; }
+.asof { margin: 6px 0 0; font-size: 14px; opacity: .88; }
+.asof.edu { margin-top: 2px; font-size: 13px; }
+.asof a { color: inherit; }
+.pickers { display: flex; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.picker { display: grid; gap: 4px; min-width: 0; }
+.picker label { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+                opacity: .85; }
+.picker select { appearance: none; -webkit-appearance: none; background: var(--surface); color: var(--ink);
+  border: 0; border-radius: 8px; padding: 11px 40px 11px 14px; font-weight: 600; font-size: 16px;
+  min-width: 230px; max-width: 100%; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%;
+  background-size: 6px 6px; background-repeat: no-repeat; }
+.picker select.st { min-width: 170px; }
+.picker select:disabled { opacity: .6; cursor: default; }
+
+/* tally */
+.tally { background: var(--surface); border-bottom: 1px solid var(--rule); }
+.tally .wrap { padding-block: 14px; display: flex; flex-wrap: wrap; gap: 10px 32px; align-items: baseline; }
+.tally .lead { font-weight: 600; color: var(--ink-2); font-size: 14px; flex-basis: 100%; margin: 0; }
+.stat { display: grid; gap: 0; min-width: 0; }
+.stat b { font: 700 22px/1.2 var(--body); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 13px; color: var(--muted); }
+
+/* tabs */
+.tabs { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+        border-bottom: 1px solid var(--rule); }
+.tabs .wrap { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding-block: 8px; }
+.tab { flex: 0 0 auto; border: 0; background: transparent; padding: 9px 14px; border-radius: 999px;
+       font-weight: 600; font-size: 15px; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.tab:hover { background: var(--accent-soft); color: var(--ink); }
+.tab[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+
+/* panels */
+main { padding-block: 26px 40px; }
+.panel { display: grid; gap: 22px; }
+.panel[hidden] { display: none; }     /* display:grid would otherwise beat the hidden attribute */
+.panel > * { min-width: 0; }
+h2 { font: 700 clamp(22px, 3.4vw, 28px)/1.2 var(--display); margin: 0; text-wrap: balance; }
+h3 { font: 700 18px/1.3 var(--body); margin: 0; }
+.sub { margin: 4px 0 0; color: var(--ink-2); font-size: 15px; max-width: 70ch; }
+.note { margin: 0; color: var(--muted); font-size: 13.5px; max-width: 74ch; }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r); padding: 18px; }
+.empty { color: var(--muted); font-size: 15px; margin: 0; }
+
+/* chips in drought colors */
+.chip { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px;
+        padding: 3px 9px 3px 4px; border-radius: 999px; background: var(--accent-soft); color: var(--ink);
+        white-space: nowrap; }
+.sw { width: 16px; height: 16px; border-radius: 4px; flex: 0 0 auto;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.18); }
+
+/* maps */
+.mapcard { padding: 12px; position: relative; }
+.mapsvg { display: block; width: 100%; height: auto; touch-action: manipulation; }
+.mapsvg .c { stroke: var(--border); stroke-width: .35; vector-effect: non-scaling-stroke; cursor: pointer; }
+.mapsvg .c:hover { stroke: var(--ink); stroke-width: 1.4; }
+.mapsvg .stl { fill: none; stroke: var(--state-line); stroke-width: .7; vector-effect: non-scaling-stroke;
+               pointer-events: none; stroke-linejoin: round; }
+.mapsvg .stl.on { stroke-width: 2.6; }
+.mapsvg .hi { fill: none; stroke: var(--ink); stroke-width: 3; vector-effect: non-scaling-stroke;
+              pointer-events: none; stroke-linejoin: round; }
+.mapsvg .hi2 { fill: none; stroke: var(--surface); stroke-width: 6; vector-effect: non-scaling-stroke;
+               pointer-events: none; stroke-linejoin: round; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 4px 2px; font-size: 13.5px;
+          color: var(--ink-2); padding: 0; list-style: none; }
+.legend li { display: inline-flex; align-items: center; gap: 6px; }
+.tip { position: fixed; z-index: 20; pointer-events: none; background: var(--surface); color: var(--ink);
+       border: 1px solid var(--rule); border-radius: 8px; padding: 9px 11px; font-size: 13.5px;
+       box-shadow: 0 6px 24px rgba(0,0,0,.18); max-width: 260px; }
+.tip b { display: block; font-size: 14px; }
+.tip .row { display: flex; justify-content: space-between; gap: 14px; font-variant-numeric: tabular-nums; }
+.tip .row span:first-child { display: inline-flex; align-items: center; gap: 6px; }
+.tip .sw { width: 11px; height: 11px; border-radius: 3px; }
+
+.statewrap { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+.zoombar { position: absolute; top: 18px; right: 18px; display: grid; gap: 6px; z-index: 2; }
+.zoombar button { width: 38px; height: 38px; border-radius: 8px; border: 1px solid var(--rule);
+                  background: var(--surface); font-size: 20px; font-weight: 600; cursor: pointer;
+                  line-height: 1; display: grid; place-items: center; }
+.zoombar button:hover { background: var(--accent-soft); }
+#statemap { cursor: grab; touch-action: none; max-height: 70vh; }
+#statemap.drag { cursor: grabbing; }
+.info { display: grid; gap: 12px; }
+.info h3 { font-size: 20px; font-family: var(--display); }
+.bar { display: flex; height: 18px; border-radius: 5px; overflow: hidden; background: var(--none); }
+.bar span { display: block; height: 100%; }
+.shares { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.shares td { padding: 4px 0; border-bottom: 1px solid var(--rule); }
+.shares td:last-child { text-align: right; font-weight: 600; }
+.shares td:first-child { display: flex; align-items: center; gap: 8px; }
+.go { justify-self: start; border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 600;
+      padding: 10px 16px; border-radius: 999px; cursor: pointer; }
+.go:hover { filter: brightness(1.12); }
+.lfpline { margin: 0; font-size: 15px; }
+.lfpline b { font-size: 18px; }
+
+/* LFP */
+.answer { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+.answer > div { min-width: 0; }
+.answer .k { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+             color: var(--muted); margin: 0; }
+.answer .v { font: 700 34px/1.1 var(--body); margin: 4px 0 2px; font-variant-numeric: tabular-nums; color: var(--accent); }
+:root[data-theme="dark"] .answer .v { color: var(--link); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .answer .v { color: var(--link); } }
+.answer .s { margin: 0; font-size: 14px; color: var(--ink-2); }
+.links { display: flex; flex-wrap: wrap; gap: 10px; }
+.btnlink { display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 999px;
+           background: var(--accent); color: var(--accent-ink); font-weight: 600; text-decoration: none; }
+.btnlink.alt { background: var(--surface); color: var(--ink); border: 1px solid var(--rule); }
+.btnlink:hover { filter: brightness(1.1); }
+.tablewrap { overflow-x: auto; }
+table.pt { width: 100%; border-collapse: collapse; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+table.pt th { text-align: left; font-size: 12px; letter-spacing: .05em; text-transform: uppercase;
+              color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 2px solid var(--rule); }
+table.pt td { padding: 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+table.pt td.n, table.pt th.n { text-align: right; }
+table.pt tr { cursor: pointer; }
+table.pt tbody tr:hover { background: var(--accent-soft); }
+table.pt tr[aria-selected="true"] { background: var(--accent-soft); box-shadow: inset 4px 0 0 var(--accent); }
+.pm { font-weight: 700; font-size: 17px; }
+.ok { color: var(--ok); font-weight: 600; }
+.off { color: var(--warn-ink); font-weight: 600; }
+.small { font-size: 13px; color: var(--muted); }
+.ladder { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ladder li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center;
+             padding: 10px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); }
+.ladder li.met { background: var(--ok-bg); border-color: transparent; }
+.ladder .lv { font: 700 22px/1 var(--body); text-align: center; font-variant-numeric: tabular-nums; }
+.ladder .lv small { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .04em;
+                    text-transform: uppercase; color: var(--muted); margin-top: 3px; }
+.ladder .what { display: grid; gap: 2px; min-width: 0; }
+.ladder .what b { font-size: 15px; }
+.ladder .what span { font-size: 13.5px; color: var(--ink-2); }
+.ladder .st { font-size: 13.5px; font-weight: 600; text-align: right; min-width: 0; }
+.pips { display: inline-flex; gap: 3px; vertical-align: middle; margin-left: 4px; }
+.pips i { width: 10px; height: 10px; border-radius: 3px; background: var(--rule); display: inline-block; }
+.pips i.on { background: var(--ink-2); }
+.strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px; align-items: end; }
+.strip span { height: 26px; border-radius: 2px; }
+.strip span.out { opacity: .28; height: 14px; }
+.striplab { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px;
+            font-size: 11.5px; color: var(--muted); margin-top: 4px; white-space: nowrap; }
+.striplab span { overflow: visible; }
+.seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.field { display: grid; gap: 4px; }
+.field > span { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.field input, .field select { padding: 8px 10px; border: 1px solid var(--rule); border-radius: 8px;
+                              background: var(--surface); }
+.field input { width: 120px; font-variant-numeric: tabular-nums; }
+/* timeline of the levels reached in the grazing period */
+.tl { display: grid; gap: 8px; }
+.tl-track { position: relative; height: 34px; margin: 4px 14px 0; }
+.tl-track::before { content: ""; position: absolute; left: 0; right: 0; top: 15px; height: 4px; border-radius: 2px;
+                    background: var(--rule); }
+.tl-done { position: absolute; left: 0; top: 15px; height: 4px; border-radius: 2px; background: var(--ink-2); }
+.tl-dot { position: absolute; top: 5px; min-width: 24px; height: 24px; padding: 0 7px; transform: translateX(-50%);
+          border-radius: 12px; background: var(--accent); color: var(--accent-ink); font: 700 12px/24px var(--body);
+          text-align: center; font-style: normal; white-space: nowrap; box-shadow: 0 0 0 2px var(--surface); }
+.tl-now { position: absolute; top: 8px; width: 2px; height: 18px; margin-left: -1px; background: var(--ink); }
+.tl-ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.tl-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; font-size: 14px; }
+.tl-list b { font-variant-numeric: tabular-nums; margin-right: 8px; white-space: nowrap; }
+.cut { background: var(--warn-bg); color: var(--warn-ink); font-weight: 600; padding: 1px 6px; border-radius: 4px; }
+.callout { border-left: 4px solid var(--warn-ink); background: var(--warn-bg); color: var(--ink);
+           padding: 10px 14px; border-radius: 6px; font-size: 14.5px; margin: 0; }
+/* Beef cows in drought: history charts (gray fill, this year in maroon) and state ranking */
+.chart { width: 100%; height: auto; display: block; touch-action: pan-y; }
+.chart .grid { stroke: var(--rule); stroke-width: 1; }
+.chart .spine { stroke: var(--ink-2); stroke-width: 1; }
+.chart .ax { fill: var(--muted); font: 12px var(--body); }
+.chart .area { fill: var(--area); }
+.chart .area.now { fill: var(--accent); }
+.chart .nowline { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 2 3; }
+.chart .nowlab { font: 700 13px var(--body); fill: var(--ink); }
+.chart .peak { font: 12px var(--body); fill: var(--ink-2); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+.chart .nowlab { paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+.chart .cross line { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart .dot { fill: var(--ink); stroke: var(--surface); stroke-width: 2; }
+.readout { font-size: 14px; min-height: 22px; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.seg { display: inline-flex; flex-wrap: nowrap; border: 1px solid var(--rule); border-radius: 999px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); padding: 6px 12px; cursor: pointer; font-size: 13.5px; color: var(--ink-2); white-space: nowrap; }
+@media (max-width: 640px) { .seg button { padding: 6px 9px; font-size: 13px; } }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.ctrls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.rb { display: inline-block; width: 90px; height: 10px; background: var(--none); border-radius: 3px; vertical-align: middle; margin-left: 8px; overflow: hidden; }
+.rb i { display: block; height: 100%; background: var(--accent); }
+table.rank td.n { white-space: nowrap; }
+table.rank tr.me td:first-child { font-weight: 700; }
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+th.sortable:hover { color: var(--ink); }
+th.sortable .arrow { display: inline-block; width: 1em; margin-left: 2px; font-size: 10px; }
+@media (max-width: 640px) {   /* four columns fit a phone without the bars */
+  table.rank .rb { display: none; }
+  table.rank { font-size: 13.5px; }
+  table.rank th { letter-spacing: .02em; font-size: 11px; }
+  table.rank th, table.rank td { padding-left: 5px; padding-right: 5px; }
+}
+
+/* About LFP: short sections, each ending in its USDA source */
+.about { display: grid; gap: 14px; }
+.about .card { display: grid; gap: 10px; }
+.about p, .about li { margin: 0; font-size: 14.5px; color: var(--ink-2); max-width: 78ch; }
+.about ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.about .src { font-size: 13px; color: var(--muted); }
+table.rules tr { cursor: default; }
+table.rules tbody tr:hover { background: transparent; }
+table.rules td.lv { font-weight: 700; white-space: nowrap; }
+
+/* footer */
+footer { border-top: 1px solid var(--rule); background: var(--surface); }
+footer .wrap { padding-block: 26px 40px; display: grid; gap: 14px; }
+footer h2 { font-size: 20px; }
+footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14.5px; color: var(--ink-2); max-width: 80ch; }
+.disc { border: 1px solid var(--rule); border-left: 4px solid var(--ink-2); background: var(--bg); border-radius: 8px;
+        padding: 14px 16px; max-width: 80ch; display: grid; gap: 6px; }
+.disc h2 { font-size: 17px; }
+.disc p { margin: 0; font-size: 14.5px; }
+
+@media (max-width: 860px) {
+  .statewrap { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .mast .wrap { grid-template-columns: 1fr; }
+  .picker, .picker select, .picker select.st { width: 100%; min-width: 0; }
+  .pickers { display: grid; grid-template-columns: 1fr; width: 100%; }
+  .stat b { font-size: 19px; }
+  .tally .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+  .tally .lead { grid-column: 1 / -1; }
+  .stat span { font-size: 12.5px; line-height: 1.3; }
+  .ladder li { grid-template-columns: 38px minmax(0, 1fr); }
+  .strip, .striplab { gap: 1px; }
+  .ladder .st { grid-column: 2; text-align: left; }
+  table.pt .hide-sm { display: none; }
+  .zoombar { top: 14px; right: 14px; }
+}
+</style>
+
+<header class="mast">
+  <div class="wrap">
+    <div>
+      <h1>Beef Cattle Drought Tracker</h1>
+      <p class="asof" id="asof">Loading this week's map…</p>
+      <p class="asof edu">For educational use only. <a href="#disclaimer">Read the disclaimer</a>.</p>
+    </div>
+    <div class="pickers">
+      <div class="picker">
+        <label for="state">State</label>
+        <select id="state" class="st"><option value="">Pick a state</option></select>
+      </div>
+      <div class="picker">
+        <label for="county">County</label>
+        <select id="county" disabled><option value="">Pick a county</option></select>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="tally" aria-label="This week">
+  <div class="wrap" id="tally"></div>
+</section>
+
+<nav class="tabs" aria-label="Pages">
+  <div class="wrap" role="tablist" id="tablist">
+    <button class="tab" role="tab" id="t-map" aria-controls="map" data-tab="map">Drought map</button>
+    <button class="tab" role="tab" id="t-cows" aria-controls="cows" data-tab="cows">Beef cows in drought</button>
+    <button class="tab" role="tab" id="t-lfp" aria-controls="lfp" data-tab="lfp">LFP payments</button>
+    <button class="tab" role="tab" id="t-about" aria-controls="about" data-tab="about">About LFP</button>
+  </div>
+</nav>
+
+<main class="wrap">
+  <section class="panel" id="map" role="tabpanel" aria-labelledby="t-map">
+    <div>
+      <h2>This week's drought conditions</h2>
+      <p class="sub" id="map-sub">Each county is colored by the worst Drought Monitor category on any part of it,
+        the rating the Livestock Forage Disaster Program (LFP) uses. Click a state to see its counties.</p>
+    </div>
+    <div class="card mapcard">
+      <svg class="mapsvg" id="usmap" viewBox="0 0 975 610" role="img" aria-label="U.S. counties by worst drought category"></svg>
+      <ul class="legend" id="legend"></ul>
+    </div>
+
+    <div id="statesec" hidden>
+      <div>
+        <h2 id="st-h"></h2>
+        <p class="sub" id="st-sub"></p>
+      </div>
+      <div class="statewrap" style="margin-top:14px">
+        <div class="card mapcard">
+          <div class="zoombar" aria-label="Zoom">
+            <button type="button" id="z-in" aria-label="Zoom in">+</button>
+            <button type="button" id="z-out" aria-label="Zoom out">&minus;</button>
+            <button type="button" id="z-fit" aria-label="Show the whole state" title="Show the whole state">&#x2922;</button>
+          </div>
+          <svg class="mapsvg" id="statemap" role="img"></svg>
+          <p class="note" style="margin:8px 4px 0">Drag to move, pinch or use the buttons to zoom. Click a county to pick it.</p>
+        </div>
+        <div class="card info" id="info"></div>
+      </div>
+    </div>
+    <p class="note">The official Drought Monitor map draws the drought areas themselves; see it at
+      <a href="https://droughtmonitor.unl.edu/" target="_blank" rel="noopener">droughtmonitor.unl.edu</a>.</p>
+  </section>
+
+  <section class="panel" id="lfp" role="tabpanel" aria-labelledby="t-lfp" hidden>
+    <div>
+      <h2 id="lfp-h">Where your county stands on LFP payments</h2>
+      <p class="sub" id="lfp-sub">LFP pays livestock producers for grazing losses when the Drought Monitor rates any
+        part of their county in severe drought (D2) or worse during the normal grazing period for their pasture type.</p>
+    </div>
+    <div class="links">
+      <a class="btnlink" id="lnk-prog" href="https://www.fsa.usda.gov/resources/disaster-recovery/livestock-forage-disaster-program-lfp" target="_blank" rel="noopener">LFP program details at USDA FSA &#x2197;</a>
+      <a class="btnlink alt" id="lnk-maps" href="https://www.fsa.usda.gov/resources/programs/livestock-forage-disaster-program-lfp/maps" target="_blank" rel="noopener">FSA's weekly eligible counties &#x2197;</a>
+      <a class="btnlink alt" href="https://www.fsa.usda.gov/fsa-office-locator" target="_blank" rel="noopener">Find your county FSA office &#x2197;</a>
+    </div>
+    <div id="lfpbody"></div>
+    <p class="note">The rules, what FSA requires of producers and the sources are under
+      <a href="#about" data-tab="about">About LFP</a>. USDA's Farm Service Agency is the source for all LFP details and
+      alone decides eligibility and payments; contact your county FSA office with any question about the program.</p>
+  </section>
+
+  <section class="panel" id="cows" role="tabpanel" aria-labelledby="t-cows" hidden>
+    <div>
+      <h2 id="cows-h">Where are the beef cows in drought?</h2>
+      <p class="sub">Each county's Census of Agriculture beef cows, counted in drought by the share of its land in
+        drought (D1 or worse), the way USDA counts livestock in drought.</p>
+    </div>
+    <div id="cowsbody"><p class="empty card">Loading the beef cow history…</p></div>
+  </section>
+
+  <section class="panel" id="about" role="tabpanel" aria-labelledby="t-about" hidden>
+    <div>
+      <h2>About the Livestock Forage Disaster Program</h2>
+      <p class="sub">What LFP is, the rules this page applies and where they come from, summarized from USDA's own
+        documents. The documents govern; FSA applies them.</p>
+    </div>
+    <p class="callout">USDA's Farm Service Agency (FSA) is the source for all LFP details. For any question about the
+      program, or about your own operation, contact your county FSA office.</p>
+    <div class="links">
+      <a class="btnlink" href="https://www.fsa.usda.gov/resources/disaster-recovery/livestock-forage-disaster-program-lfp" target="_blank" rel="noopener">LFP program page, USDA FSA &#x2197;</a>
+      <a class="btnlink alt" href="https://www.usda.gov/guidance-documents/livestock/fsa/livestock-forage-disaster-program-lfp" target="_blank" rel="noopener">LFP fact sheet &#x2197;</a>
+      <a class="btnlink alt" href="https://www.fsa.usda.gov/resources/programs/livestock-forage-disaster-program-lfp/maps" target="_blank" rel="noopener">FSA's weekly eligible counties &#x2197;</a>
+      <a class="btnlink alt" href="https://www.arcgis.com/apps/dashboards/3c9aef9fd4684f948e3bb2375b93cfb9" target="_blank" rel="noopener">FSA's LFP eligibility dashboard &#x2197;</a>
+      <a class="btnlink alt" href="https://www.ecfr.gov/current/title-7/subtitle-B/chapter-XIV/subchapter-B/part-1416/subpart-C" target="_blank" rel="noopener">Regulation, 7 CFR 1416 subpart C &#x2197;</a>
+      <a class="btnlink alt" href="https://www.law.cornell.edu/uscode/text/7/9081" target="_blank" rel="noopener">Statute, 7 U.S.C. 9081 &#x2197;</a>
+      <a class="btnlink alt" href="https://www.fsa.usda.gov/fsa-office-locator" target="_blank" rel="noopener">Find a county FSA office &#x2197;</a>
+    </div>
+    <div class="about">
+      <div class="card">
+        <h3>What LFP is</h3>
+        <p>In FSA's words, LFP "provides financial support to eligible livestock producers who experience grazing
+          losses due to qualifying drought or fire conditions." For drought, "compensation is available for livestock
+          producers with privately owned or cash-leased land in counties designated as experiencing qualifying drought
+          conditions," as rated by the U.S. Drought Monitor during the pasture's normal grazing period. It covers the
+          grazing livestock FSA lists as eligible, including beef and dairy cattle, sheep and goats.</p>
+        <p class="src">Source: FSA's LFP program page and fact sheet (linked above); 7 CFR 1416.201-1416.204.</p>
+      </div>
+      <div class="card">
+        <h3>The drought triggers</h3>
+        <p>FSA counts drought in "payment months", from 1 to 5, by how bad and how long it is on the Drought Monitor on
+          any part of the county during the pasture type's normal grazing period. Each category includes the worse ones
+          ("D2" means D2, D3 or D4).</p>
+        <div class="tablewrap"><table class="pt rules"><thead><tr><th>Drought Monitor rating</th><th class="n">Payment months</th></tr></thead><tbody>
+          <tr><td>D2 (severe) for 4 weeks in a row</td><td class="n lv">1</td></tr>
+          <tr><td>D2 for 7 of 8 weeks in a row (the first 4 in a row)</td><td class="n lv">2</td></tr>
+          <tr><td>D3 (extreme) at any time</td><td class="n lv">3</td></tr>
+          <tr><td>D3 for 4 weeks (not necessarily in a row), or D4 (exceptional) at any time</td><td class="n lv">4</td></tr>
+          <tr><td>D4 for 4 weeks</td><td class="n lv">5</td></tr>
+        </tbody></table></div>
+        <p>A county reaches each level as the drought does, and FSA's weekly list of eligible counties records the
+          level for each county and pasture type. These are the triggers for program year 2026 on; the Working Families
+          Tax Cuts Act of July 4, 2025 lowered the D2 trigger from 8 weeks to 4 and added the 7-of-8-weeks trigger.</p>
+        <p class="src">Source: 7 U.S.C. 9081(c)(3); FSA's weekly list of eligible counties.</p>
+      </div>
+      <div class="card">
+        <h3>Normal grazing periods</h3>
+        <p>FSA sets a normal grazing period for each pasture type in each county, and only drought weeks inside it count.
+          A grazing period allows one payment month for each full 30 days it lasts, up to five. FSA's weekly list shows
+          each county's pasture types, grazing periods and payment months; FSA's acreage records determine which pasture
+          types apply to a producer's land.</p>
+        <p class="src">Source: 7 CFR 1416.202 and 1416.205; FSA's weekly list of eligible counties.</p>
+      </div>
+      <div class="card">
+        <h3>How FSA figures the payment</h3>
+        <ul>
+          <li>The monthly payment rate is 60% of the monthly feed cost for each animal. For an adult beef cow the feed cost
+            is 15.7 pounds of corn a day for 30 days at the year's corn price; other livestock are converted to that
+            with FSA's animal-unit factors. If the feed cost based on the land's normal carrying capacity is lower, that
+            is used instead.</li>
+          <li>The payment is the monthly rate times the payment months times the eligible animals. Payment months are
+            a multiplier, not a schedule of checks: FSA pays after the application is processed, with the balance if the
+            county reaches a higher level later in the grazing period.</li>
+          <li>Payments are limited to $125,000 per person or legal entity a program year.</li>
+          <li>Payments are reduced by sequestration, a budget-law cut that applies to most USDA farm programs<span
+            id="about-seq"></span>. The dollar figures on this page are after that cut.</li>
+        </ul>
+        <p class="src">Source: 7 U.S.C. 9081(c)(4)-(5); 7 CFR 1416.205; OMB's sequestration reports under the Balanced
+          Budget and Emergency Deficit Control Act.</p>
+      </div>
+      <div class="card">
+        <h3>What FSA requires of producers</h3>
+        <ul>
+          <li>An acreage report (form FSA-578) for the grazing land, on file with the county FSA office under the
+            producer's farm number by the county's acreage reporting date, usually July 15 for pasture. FSA's handbook
+            requires the acreage report before an LFP application is processed; a late report is accepted for a fee where
+            FSA can still verify the acreage. There is no enrollment or premium.</li>
+          <li>An application (form CCC-853) at the county FSA office. In FSA's words, "applications must be submitted by
+            March 1 following the end of the calendar year in which the grazing loss occurred"
+            (<span id="about-deadline">March 1 of the next year</span>), with the other forms FSA's program page lists
+            and records of the livestock and of ownership or lease of the grazing land.</li>
+        </ul>
+        <p>FSA determines eligibility, grazing periods, carrying capacities and payments from its own records. This page
+          does not; your county FSA office is the place to ask.</p>
+        <p class="src">Source: 7 CFR 1416.205 and 1416.206; FSA handbook
+          <a href="https://www.fsa.usda.gov/Internet/FSA_File/1-lfp_r00_a07.pdf" target="_blank" rel="noopener">1-LFP</a> (amendment 7, August 2025).</p>
+      </div>
+      <div class="card">
+        <h3>Where this page's numbers come from</h3>
+        <ul>
+          <li>Drought: U.S. Drought Monitor county statistics (National Drought Mitigation Center at the University of
+            Nebraska-Lincoln, USDA and NOAA), the share of each county's area in each category. A county's color is the
+            worst category on any part of it, however small.</li>
+          <li>LFP: the drought triggers above, applied week by week. Grazing periods come from FSA's weekly list of
+            eligible counties and, for counties not on it, FSA's grazing period records (obtained under FOIA and archived
+            by the Montana Climate Office). Checked against FSA's weekly list, this page's payment months agreed for all
+            but a handful of the nearly 16,000 county pasture types; where they differ, FSA's list is the official one.</li>
+          <li id="foot-rate">Payment estimates use FSA's monthly feed cost for an adult beef cow.</li>
+          <li id="foot-cows">Beef cows in drought weight each county's Census of Agriculture beef cows by the share of
+            its land in drought, the way USDA counts livestock in drought.</li>
+          <li>County outlines: U.S. Census Bureau, 2024. The maps cover the 48 contiguous states and D.C.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer id="foot">
+  <div class="wrap">
+    <section class="disc" id="disclaimer" aria-labelledby="disc-h">
+      <h2 id="disc-h">Disclaimer</h2>
+      <p>This page is for educational purposes only. It summarizes the U.S. Drought Monitor and applies the LFP drought
+        rules to it as we understand them. It is not an eligibility determination, a payment estimate from USDA, or
+        financial or legal advice.</p>
+      <p>FSA alone decides LFP eligibility and payments, using its own records, grazing periods and carrying capacities.
+        The dollar figures here are estimates. Confirm everything with your county FSA office.</p>
+      <p>The information is provided as is, without warranty of any kind, and you use it at your own risk. Its authors
+        are not responsible for decisions made with it. This page is not affiliated with or endorsed by USDA or the
+        National Drought Mitigation Center.</p>
+    </section>
+    <p class="note" id="foot-gen"></p>
+  </div>
+</footer>
+
+<div class="tip" id="tip" hidden></div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (s, el = document) => el.querySelector(s);
+  const NS = "http://www.w3.org/2000/svg";
+  const MON = ["Jan.", "Feb.", "March", "April", "May", "June", "July", "Aug.", "Sept.", "Oct.", "Nov.", "Dec."];
+  const MON3 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const CATS = [  // index = category + 1
+    { code: "None", name: "No drought", color: "var(--none)" },
+    { code: "D0", name: "Abnormally dry", color: "var(--d0)" },
+    { code: "D1", name: "Moderate drought", color: "var(--d1)" },
+    { code: "D2", name: "Severe drought", color: "var(--d2)" },
+    { code: "D3", name: "Extreme drought", color: "var(--d3)" },
+    { code: "D4", name: "Exceptional drought", color: "var(--d4)" }
+  ];
+  const cat = k => CATS[k + 1];
+  const store = {
+    get(k) { try { return localStorage.getItem("dlfp." + k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem("dlfp." + k, v); } catch (e) { /* private window */ } }
+  };
+  const S = { tab: "map", st: "", fips: "", pasture: store.get("pasture") || "", cows: +(store.get("cows") || 50) };
+  let US = null, GEO = null;
+  const SGEO = {}, LFP = {};
+
+  const parse = iso => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); };
+  const fmt = (iso, year = true) => { const d = parse(iso);
+    return `${MON[d.getMonth()]} ${d.getDate()}` + (year ? `, ${d.getFullYear()}` : ""); };
+  const pct = v => v == null ? "–" : (v > 0 && v < 0.5 ? "<1%" : `${Math.round(v)}%`);
+  const money = v => "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money0 = v => "$" + Math.round(v).toLocaleString("en-US");
+  const count = v => Math.round(v).toLocaleString("en-US");
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  const pctOf = r => `${(r * 100).toFixed(1).replace(/\.0$/, "")}%`;
+  const months = n => n === 1 ? "1 month" : `${n} months`;
+  const deadline = year => `March 1, ${year + 1}`;     // LFP: apply by March 1 after the program year
+  const listing = xs => xs.length > 3 ? `${xs.slice(0, 2).join(", ")} and ${xs.length - 2} other types`
+    : xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}` : xs[0];
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const swatch = k => `<span class="sw" style="background:${cat(k).color}"></span>`;
+  const chip = k => `<span class="chip">${swatch(k)}${k < 0 ? "No drought" : `${cat(k).code} ${cat(k).name}`}</span>`;
+  const el = (tag, attrs = {}) => { const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+  const getJSON = p => fetch(p, { cache: "no-cache" }).then(r => { if (!r.ok) throw new Error(`${p}: ${r.status}`); return r.json(); });
+  const cname = f => GEO.names[f] ? GEO.names[f][0] : f;
+  const stOf = f => GEO.names[f] ? GEO.names[f][1] : "";
+
+  /* ---------- tooltip ---------- */
+  const tip = $("#tip");
+  function showTip(ev, f) {
+    const c = US.counties[f]; if (!c) return;
+    const [k, d0, d1, d2, d3, d4, lfp, cows] = c;
+    const rows = [[4, d4], [3, d3], [2, d2], [1, d1], [0, d0]].filter(r => r[1] > 0)
+      .map(([j, v]) => `<div class="row"><span>${swatch(j)}${cat(j).code}</span><span>${pct(v)}</span></div>`).join("");
+    tip.innerHTML = `<b>${esc(cname(f))}, ${stOf(f)}</b>${k < 0 ? "No drought" : `Worst: ${cat(k).code} ${cat(k).name}`}
+      ${rows ? `<div style="margin-top:6px">${rows}</div>` : ""}
+      ${lfp ? `<div style="margin-top:6px">LFP: ${plural(lfp, "payment month")} triggered</div>` : ""}
+      ${cows != null && US.beef ? `<div style="margin-top:${lfp ? 0 : 6}px">Beef cows: ${count(cows)} (${US.beef.census} Census)</div>` : ""}`;
+    tip.hidden = false;
+    const x = Math.min(ev.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+    const y = ev.clientY + 16 + tip.offsetHeight > window.innerHeight ? ev.clientY - tip.offsetHeight - 12 : ev.clientY + 16;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  }
+  const hideTip = () => { tip.hidden = true; };
+
+  function hoverable(svg) {
+    svg.addEventListener("pointermove", ev => {
+      if (ev.pointerType === "touch") return;
+      const f = ev.target.dataset && ev.target.dataset.f;
+      f ? showTip(ev, f) : hideTip();
+    });
+    svg.addEventListener("pointerleave", hideTip);
+  }
+
+  /* ---------- U.S. map ---------- */
+  function drawUS() {
+    const svg = $("#usmap");
+    const g = el("g");
+    for (const f in GEO.counties) {
+      const c = US.counties[f];
+      const p = el("path", { d: GEO.counties[f], class: "c", fill: cat(c ? c[0] : -1).color });
+      p.dataset.f = f;
+      g.appendChild(p);
+    }
+    svg.appendChild(g);
+    const lines = el("g");
+    for (const st in GEO.outlines) {
+      const p = el("path", { d: GEO.outlines[st], class: "stl" });
+      p.dataset.st = st;
+      lines.appendChild(p);
+    }
+    svg.appendChild(lines);
+    hoverable(svg);
+    svg.addEventListener("click", ev => {
+      const f = ev.target.dataset && ev.target.dataset.f;
+      if (!f) return;
+      hideTip();
+      pick(stOf(f), f, true);
+    });
+    $("#legend").innerHTML = [-1, 0, 1, 2, 3, 4].map(k =>
+      `<li>${swatch(k)}${k < 0 ? "None" : `${cat(k).code} ${cat(k).name}`}</li>`).join("");
+  }
+  function markUSState() {
+    document.querySelectorAll("#usmap .stl").forEach(p => {
+      const on = p.dataset.st === S.st;
+      p.classList.toggle("on", on);
+      if (on) p.parentNode.appendChild(p);
+    });
+  }
+
+  /* ---------- state map with zoom ---------- */
+  const view = { x: 0, y: 0, w: 1, h: 1, W: 1, H: 1 };
+  function setView(x, y, w, h) {
+    // between the whole state and 14x, never panned past the state's edges
+    const cx = x + w / 2, cy = y + h / 2;
+    w = Math.min(Math.max(w, view.W / 14), view.W);
+    h = w * view.H / view.W;
+    x = Math.max(0, Math.min(view.W - w, cx - w / 2));
+    y = Math.max(0, Math.min(view.H - h, cy - h / 2));
+    Object.assign(view, { x, y, w, h });
+    $("#statemap").setAttribute("viewBox", `${x} ${y} ${w} ${h}`);
+  }
+  const fit = () => setView(0, 0, view.W, view.H);
+  function zoomAt(f, cx, cy) {
+    if (cx == null) { cx = view.x + view.w / 2; cy = view.y + view.h / 2; }
+    setView(cx - (cx - view.x) / f, cy - (cy - view.y) / f, view.w / f, view.h / f);
+  }
+  function zoomToCounty(f) {
+    const p = $(`#statemap path.c[data-f="${f}"]`); if (!p) return;
+    const b = p.getBBox();
+    const pad = Math.max(b.width, b.height) * 1.6 + view.W * 0.04;
+    let w = b.width + pad * 2, h = b.height + pad * 2;
+    if (w / h > view.W / view.H) h = w * view.H / view.W; else w = h * view.W / view.H;
+    if (w > view.W) { fit(); return; }
+    setView(b.x + b.width / 2 - w / 2, b.y + b.height / 2 - h / 2, w, h);
+  }
+  function svgPoint(svg, ev) {
+    const r = svg.getBoundingClientRect();
+    return [view.x + (ev.clientX - r.left) / r.width * view.w, view.y + (ev.clientY - r.top) / r.height * view.h];
+  }
+  function setupStateMap() {
+    const svg = $("#statemap");
+    hoverable(svg);
+    const pts = new Map(); let moved = 0, last = null, pinch = null;
+    svg.addEventListener("pointerdown", ev => {
+      svg.setPointerCapture(ev.pointerId);
+      pts.set(ev.pointerId, [ev.clientX, ev.clientY]); moved = 0;
+      if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = Math.hypot(a[0] - b[0], a[1] - b[1]); }
+      last = [ev.clientX, ev.clientY];
+    });
+    svg.addEventListener("pointermove", ev => {
+      if (!pts.has(ev.pointerId)) return;
+      pts.set(ev.pointerId, [ev.clientX, ev.clientY]);
+      const r = svg.getBoundingClientRect();
+      if (pts.size === 2 && pinch) {
+        const [a, b] = [...pts.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+        const mid = { clientX: (a[0] + b[0]) / 2, clientY: (a[1] + b[1]) / 2 };
+        const [cx, cy] = svgPoint(svg, mid); zoomAt(d / pinch, cx, cy); pinch = d; moved += 10; return;
+      }
+      const dx = ev.clientX - last[0], dy = ev.clientY - last[1];
+      moved += Math.abs(dx) + Math.abs(dy);
+      if (moved > 4) { svg.classList.add("drag"); hideTip();
+        setView(view.x - dx / r.width * view.w, view.y - dy / r.height * view.h, view.w, view.h); }
+      last = [ev.clientX, ev.clientY];
+    });
+    const up = ev => { pts.delete(ev.pointerId); if (pts.size < 2) pinch = null; svg.classList.remove("drag");
+      if (pts.size === 1) last = [...pts.values()][0]; };
+    svg.addEventListener("pointerup", ev => {
+      const f = ev.target.dataset && ev.target.dataset.f;
+      const tap = moved <= 4 && pts.size === 1;
+      up(ev);
+      if (tap && f) pick(S.st, f, false);
+    });
+    svg.addEventListener("pointercancel", up);
+    svg.addEventListener("wheel", ev => {
+      if (!(ev.ctrlKey || ev.metaKey)) return;   // plain wheel scrolls the page
+      ev.preventDefault();
+      const [cx, cy] = svgPoint(svg, ev);
+      zoomAt(Math.exp(-ev.deltaY * 0.01), cx, cy);
+    }, { passive: false });
+    svg.addEventListener("dblclick", ev => { const [cx, cy] = svgPoint(svg, ev); zoomAt(2, cx, cy); });
+    $("#z-in").onclick = () => zoomAt(1.6);
+    $("#z-out").onclick = () => zoomAt(1 / 1.6);
+    $("#z-fit").onclick = fit;
+  }
+  function drawState() {
+    const g = SGEO[S.st], svg = $("#statemap");
+    svg.innerHTML = "";
+    Object.assign(view, { W: g.w, H: g.h });
+    svg.setAttribute("aria-label", `${US.meta.states[S.st]} counties by worst drought category`);
+    const cg = el("g");
+    for (const f in g.counties) {
+      const c = US.counties[f];
+      const p = el("path", { d: g.counties[f], class: "c", fill: cat(c ? c[0] : -1).color });
+      p.dataset.f = f;
+      cg.appendChild(p);
+    }
+    svg.appendChild(cg);
+    svg.appendChild(el("path", { d: g.outline, class: "stl" }));
+    svg.appendChild(el("path", { id: "hi2", class: "hi2" }));
+    svg.appendChild(el("path", { id: "hi", class: "hi" }));
+    fit();
+  }
+  function markCounty() {
+    const d = S.fips && SGEO[S.st] ? SGEO[S.st].counties[S.fips] || "" : "";
+    const a = $("#hi"), b = $("#hi2");
+    if (a) { a.setAttribute("d", d); b.setAttribute("d", d); }
+  }
+
+  /* ---------- county card on the map tab ---------- */
+  function lfpBest(f) {
+    const L = LFP[S.st]; const c = L && L.counties[f];
+    if (!c || !c.o.length) return null;
+    return c.o.flatMap(o => o.p).sort(byUse)[0];
+  }
+  function drawInfo() {
+    const box = $("#info");
+    if (!S.fips) {
+      box.innerHTML = `<h3>${esc(US.meta.states[S.st])}</h3><p class="empty">Pick a county on the map or in the County list
+        to see its drought ratings and LFP status.</p>`;
+      return;
+    }
+    const c = US.counties[S.fips];
+    const [k, d0, d1, d2, d3, d4, , cows] = c;
+    const parts = [[0, d0], [1, d1], [2, d2], [3, d3], [4, d4]];
+    const best = lfpBest(S.fips);
+    const cowTxt = cows != null && US.beef ? `<p class="small" style="margin:0">Beef cows: <b>${count(cows)}</b> (${US.beef.census} Census),
+      ${pct(d1 + d2 + d3 + d4)} of the county's land in drought.</p>` : "";
+    const lfpTxt = US.meta.no_lfp[S.st] ? `<p class="small">${esc(US.meta.no_lfp[S.st])}</p>`
+      : best == null ? `<p class="small">FSA lists no grazing periods for this county; a neighboring county's FSA office handles it.${neighborLinks(LFP[S.st])}</p>`
+      : `<p class="lfpline">LFP ${US.meta.year}: <b>${plural(best.pm, "payment month")}</b> triggered so far${
+          best.pm ? ` for ${esc(best.t.toLowerCase())}` : ""}.</p>`;
+    box.innerHTML = `<h3>${esc(cname(S.fips))}</h3>
+      <div>${chip(k)}</div>
+      <div class="bar" role="img" aria-label="Share of the county in each category">${parts.map(([j, v]) =>
+        v > 0 ? `<span style="width:${v}%;background:${cat(j).color}" title="${cat(j).code} ${pct(v)}"></span>` : "").join("")}</div>
+      <table class="shares"><tbody>${[...parts].reverse().map(([j, v]) =>
+        `<tr><td>${swatch(j)}${cat(j).code} ${cat(j).name}</td><td>${pct(v)}</td></tr>`).join("")}
+        <tr><td>${swatch(-1)}No drought or dryness</td><td>${pct(Math.max(0, 100 - d0 - d1 - d2 - d3 - d4))}</td></tr></tbody></table>
+      <p class="small" style="margin:0">Share of the county's area, ${fmt(US.meta.map_date)}.</p>
+      ${cowTxt}${lfpTxt}
+      ${best != null && !US.meta.no_lfp[S.st] ? `<button class="go" type="button" id="to-lfp">See where it stands on LFP payments</button>` : ""}`;
+    const go = $("#to-lfp"); if (go) go.onclick = () => setTab("lfp", true);
+    wireNeighbors(box);
+  }
+
+  /* ---------- LFP tab ---------- */
+  const LEVELS = [
+    [1, "D2 for 4 weeks in a row", "Severe drought (D2) or worse on part of the county for 4 weeks in a row"],
+    [2, "D2 for 7 of 8 weeks", "D2 or worse in 7 of 8 weeks in a row, starting with 4 in a row"],
+    [3, "D3 at any time", "Extreme drought (D3) or worse on part of the county in any week"],
+    [4, "D3 for 4 weeks, or D4", "D3 or worse in 4 weeks (not necessarily in a row), or exceptional drought (D4) in any week"],
+    [5, "D4 for 4 weeks", "D4 on part of the county in 4 weeks"]
+  ];
+  const NEED = { 1: 2, 2: 2, 3: 3, 4: 3, 5: 4 };
+  const ORDER = ["Full Season Improved Pasture", "Native Pasture", "Full Season Improved Mixed Pasture",
+                 "Warm Season Improved Pasture", "Cool Season Improved Pasture", "Forage Sorghum"];
+  const rank = t => { const i = ORDER.indexOf(t); return i < 0 ? ORDER.length : i; };
+  const byUse = (a, b) => b.pm - a.pm || rank(a.t) - rank(b.t) || a.t.localeCompare(b.t);
+  const span = (s, e) => `${fmt(s, s.slice(0, 4) !== e.slice(0, 4))} – ${fmt(e)}`;
+  const pips = (have, need) => `<span class="pips" aria-hidden="true">${Array.from({ length: need }, (_, i) =>
+    `<i class="${i < have ? "on" : ""}"></i>`).join("")}</span>`;
+  function progress(p, lv) {
+    if (lv === 1) return `${Math.min(p.d2, 4)} of 4 now${pips(Math.min(p.d2, 4), 4)}`;
+    if (lv === 2) return `${p.d8} of the last 8 weeks`;
+    if (lv === 3) return p.worst >= 0 ? `Worst so far: ${cat(p.worst).code}` : "No drought so far";
+    if (lv === 4) return `${Math.min(p.d3, 4)} of 4 weeks at D3${pips(Math.min(p.d3, 4), 4)}`;
+    return `${Math.min(p.d4, 4)} of 4 weeks at D4${pips(Math.min(p.d4, 4), 4)}`;
+  }
+  function ladder(p) {
+    const nx = Object.fromEntries(p.next), hit = Object.fromEntries(p.hit);
+    return `<ol class="ladder">${LEVELS.map(([lv, short, long]) => {
+      const met = p.lv >= lv;
+      let st;
+      if (met) st = `<span class="ok">Reached ${fmt(hit[lv], false)}${lv > p.cap ? `; capped at ${p.cap} by the grazing period` : ""}</span>`;
+      else if (lv > p.cap) st = `<span class="small">Grazing period too short for ${lv}</span>`;
+      else if (nx[lv] == null) st = `<span class="small">${p.left ? "Can't happen before" : "Grazing period ended"} ${p.left ? fmt(p.e, false) : ""}</span>`;
+      else st = `<span class="off">${plural(nx[lv], "more week")} at ${cat(NEED[lv]).code}</span>`;
+      return `<li class="${met ? "met" : ""}"><div class="lv">${lv}<small>${lv === 1 ? "month" : "months"}</small></div>
+        <div class="what"><b>${short}</b><span>${long}. ${met ? "" : progress(p, lv)}</span></div><div class="st">${st}</div></li>`;
+    }).join("")}</ol>`;
+  }
+  function timeline(p) {
+    const s = parse(p.s), e = parse(p.e), now = parse(US.meta.map_date), span = e - s;
+    const pos = d => Math.max(0, Math.min(100, (d - s) / span * 100));
+    const groups = new Map();
+    for (const [lv, d] of p.hit) { if (!groups.has(d)) groups.set(d, []); groups.get(d).push(lv); }
+    const dots = [...groups].map(([d, lvs]) => `<i class="tl-dot" style="left:${pos(parse(d))}%" title="${fmt(d)}">${
+      lvs.length > 1 ? `${lvs[0]}–${lvs[lvs.length - 1]}` : lvs[0]}</i>`).join("");
+    const items = p.hit.map(([lv, d]) => `<li><b>${fmt(d, false)}</b>${months(lv)}: ${LEVELS[lv - 1][1]}</li>`).join("");
+    return `<div class="tl">
+      <div class="tl-track"><span class="tl-done" style="width:${pos(now)}%"></span>${dots}<span class="tl-now" style="left:${pos(now)}%" title="${fmt(US.meta.map_date)}"></span></div>
+      <div class="tl-ends"><span>${fmt(p.s, false)}</span><span>${fmt(p.e, false)}</span></div>
+      ${items ? `<ol class="tl-list">${items}</ol>` : `<p class="small" style="margin:0">No payment level reached yet in this grazing period.</p>`}
+    </div>`;
+  }
+  function strip(c, p) {
+    const L = LFP[S.st]; const [first, n] = L.weeks;
+    const d0 = parse(first), s = parse(p.s), e = parse(p.e);
+    let cells = "", labs = "";
+    for (let i = 0; i < n; i++) {
+      const d = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + 7 * i);
+      const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 6);
+      const ch = c.w[i]; const k = ch === "-" ? -1 : ch === "." ? null : +ch;
+      const inside = end >= s && d <= e;
+      const lab = `${MON3[d.getMonth()]} ${d.getDate()}: ${k == null ? "no map" : k < 0 ? "no drought" : cat(k).code}${inside ? "" : " (outside grazing period)"}`;
+      cells += `<span class="${inside ? "" : "out"}" style="background:${k == null ? "transparent" : cat(k).color}" title="${lab}"></span>`;
+      labs += `<span>${d.getDate() <= 7 ? MON3[d.getMonth()] : ""}</span>`;
+    }
+    return `<div class="strip" role="img" aria-label="Worst drought category each week; the grazing period is drawn taller">${cells}</div>
+      <div class="striplab" aria-hidden="true">${labs}</div>`;
+  }
+  function drawLFP() {
+    const box = $("#lfpbody");
+    const meta = US.meta;
+    $("#lfp-h").textContent = S.fips ? `Where ${cname(S.fips)} stands on LFP payments` : "Where your county stands on LFP payments";
+    if (!S.st) { box.innerHTML = `<p class="empty card">Pick your state and county at the top of the page.</p>`; return; }
+    if (meta.no_lfp[S.st]) { box.innerHTML = `<p class="callout">${esc(meta.no_lfp[S.st])} Check FSA's list of eligible counties for ${esc(meta.states[S.st])}.</p>`; return; }
+    const L = LFP[S.st];
+    if (!L) { box.innerHTML = `<p class="empty card">LFP grazing periods for ${meta.year} aren't available here yet. Check FSA's weekly list.</p>`; return; }
+    if (!S.fips) { box.innerHTML = `<p class="empty card">Pick your county at the top of the page, or on the map.</p>`; return; }
+    const c = L.counties[S.fips];
+    if (!c || !c.o.length) {
+      box.innerHTML = `<p class="callout">FSA lists no grazing periods for ${esc(cname(S.fips))}; producers there are served by a
+        neighboring county's FSA office.${neighborLinks(L)}</p>`;
+      wireNeighbors(box);
+      return;
+    }
+    const all = c.o.flatMap(o => o.p.map(p => ({ ...p, office: o.name, fsaCode: o.fsa }))).sort(byUse);
+    const sel = all.find(p => p.t === S.pasture && (!S.office || p.fsaCode === S.office)) || all.find(p => p.t === S.pasture)
+      || all.find(p => p.t === ORDER[0]) || all.find(p => p.t === ORDER[1]) || all[0];
+    const best = Math.max(...all.map(p => p.pm));
+    const bestTypes = all.filter(p => p.pm === best).map(p => p.t.toLowerCase());
+    const rate = meta.rate;
+    const cut = rate ? rate.sequester || 0 : 0;
+    const net = v => v * (1 - cut);
+    const listNote = meta.fsa_list ? `FSA's list of ${fmt(meta.fsa_list, false)}` : "FSA's list";
+    const carried = meta.ngp_year && meta.ngp_year < meta.year ? `<p class="note">FSA's ${meta.year} grazing periods aren't
+      available yet for counties not on its weekly list; those use the ${meta.ngp_year} periods moved forward a year.</p>` : "";
+    const offices = c.o.length > 1 ? `<p class="note">FSA has ${c.o.length} offices in this county (${c.o.map(o => esc(o.name)).join(", ")}),
+      each with its own grazing periods. The drought figures are for the whole county, so FSA's list may differ for an office that covers only part of it.</p>` : "";
+    const rows = all.map(p => {
+      const agree = p.fsa == null ? "" : p.fsa === p.pm ? `<span class="ok">${p.fsa} ✓</span>` : `<span class="off">${p.fsa}</span>`;
+      const on = p === sel || (p.t === sel.t && p.fsaCode === sel.fsaCode);
+      return `<tr data-t="${esc(p.t)}" data-o="${p.fsaCode}" aria-selected="${on}" tabindex="0">
+        <td><b>${esc(p.t)}</b>${c.o.length > 1 ? `<div class="small">${esc(p.office)} office</div>` : ""}</td>
+        <td class="hide-sm">${span(p.s, p.e)}</td>
+        <td class="n pm">${p.pm}</td>
+        <td class="n hide-sm">${agree}</td>
+        <td class="n">${rate ? money(net(p.pm * rate.month)) : "–"}</td></tr>`;
+    }).join("");
+    const nx = Object.fromEntries(sel.next);
+    const nextLv = LEVELS.find(([lv]) => lv > sel.lv && lv <= sel.cap && nx[lv] != null);
+    const nextTxt = nextLv ? `${plural(nx[nextLv[0]], "more week")} at ${cat(NEED[nextLv[0]]).code} would make it ${months(nextLv[0])}`
+      : sel.lv >= sel.cap ? "The most this grazing period allows" : sel.left ? "No higher level is possible before the grazing period ends" : "The grazing period has ended";
+    box.innerHTML = `
+      <div class="card answer">
+        ${rate ? `<div><p class="k">Estimated LFP payment, ${esc(sel.t.toLowerCase())}</p>
+          <p class="v">${money(net(sel.pm * rate.month))} <span style="font-size:18px">per cow</span></p>
+          <p class="s">${months(sel.pm)} × ${money(rate.month)} a month${rate.official ? "" : " (estimated)"}${cut ? `, <span class="cut">less the ${pctOf(cut)} sequestration cut</span>` : ""}.
+          FSA pays eligible livestock producers with qualifying grazing losses; applications are due ${deadline(meta.year)}. For
+          <label><input id="cow-n" type="number" min="0" step="1" value="${S.cows}" style="width:80px;padding:3px 6px;border:1px solid var(--rule);border-radius:6px;background:var(--surface)"></label>
+          cows: <b id="cowtot">${money0(net(sel.pm * rate.month * S.cows))}</b></p></div>` : ""}
+        <div><p class="k">Payment months triggered, ${esc(sel.t.toLowerCase())}</p>
+          <p class="v">${sel.pm} <span style="font-size:18px">of ${sel.cap}</span></p>
+          <p class="s">${nextTxt}${sel.left ? `; ${plural(sel.left, "map")} left in the grazing period` : ""}.</p></div>
+        <div><p class="k">Most of any pasture type</p><p class="v">${best} <span style="font-size:18px">${best === 1 ? "month" : "months"}</span></p>
+          <p class="s">${best ? `${listing(bestTypes)}` : "No pasture type has reached a payment level yet"}</p></div>
+      </div>
+      ${offices}${carried}
+      <div class="card" style="display:grid;gap:12px">
+        <div><h3>By pasture type</h3>
+          <p class="note">Drought Monitor for ${fmt(meta.map_date)}; checked against ${listNote}. Pick a row to see how close it is to the next level. Each pasture type has its own grazing period.</p></div>
+        <div class="tablewrap"><table class="pt"><thead><tr><th>Pasture type</th><th class="hide-sm">Normal grazing period</th>
+          <th class="n">Payment months</th><th class="n hide-sm">${listNote}</th><th class="n">Est. payment per cow</th></tr></thead><tbody>${rows}</tbody></table></div>
+      </div>
+      <div class="card" style="display:grid;gap:14px">
+        <div><h3>${esc(sel.t)}: when ${esc(cname(S.fips))} reached each level</h3>
+          <p class="note">Grazing period ${span(sel.s, sel.e).replace(" – ", " to ")}${sel.cap < 5 ? `, long enough for at most ${plural(sel.cap, "payment month")}` : ""}.
+          Dates are when the Drought Monitor reached each level, not payment dates.</p></div>
+        ${timeline(sel)}
+        <div><h3 style="font-size:15px">The five levels, and what the next one takes</h3>
+          <p class="note">Weeks to go assume every remaining week is at the category shown.</p></div>
+        ${ladder(sel)}
+        <div><h3 style="font-size:15px;margin-bottom:6px">Worst category each week, ${span(LFP[S.st].weeks[0], meta.map_date).replace(" – ", " to ")}</h3>
+          ${strip(c, sel)}
+          <p class="note" style="margin-top:6px">Tall bars are weeks in this pasture type's grazing period.</p></div>
+      </div>`;
+    box.querySelectorAll("table.pt tbody tr").forEach(tr => {
+      const choose = () => { S.pasture = tr.dataset.t; S.office = tr.dataset.o; store.set("pasture", S.pasture); drawLFP(); };
+      tr.onclick = choose;
+      tr.onkeydown = ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); choose(); } };
+    });
+    const cows = $("#cow-n");
+    if (cows) cows.oninput = () => { S.cows = Math.max(0, +cows.value || 0); store.set("cows", S.cows);
+      $("#cowtot").textContent = cows.value === "" ? "–" : money0(net(sel.pm * rate.month * S.cows)); };
+  }
+
+  function neighborLinks(L) {
+    // only for Virginia, whose independent cities have no FSA grazing periods (Josh, 11/1/2026)
+    const g = SGEO[S.st];
+    if (S.st !== "VA" || !g || !g.nb || !g.nb[S.fips] || !L) return "";
+    const nb = g.nb[S.fips].filter(f => L.counties[f] && L.counties[f].o.length);
+    if (!nb.length) return "";
+    return ` Bordering counties: ${nb.map(f => `<a href="#lfp-${f}" data-f="${f}">${esc(cname(f))}</a>`).join(", ")}.`;
+  }
+  function wireNeighbors(box) {
+    box.querySelectorAll("a[data-f]").forEach(a => a.onclick = ev => { ev.preventDefault(); pick(S.st, a.dataset.f, false, true); });
+  }
+
+  /* ---------- beef cows in drought tab ---------- */
+  let BEEF = null, beefJob = null;
+  const CW = { measure: store.get("measure") || "d1", years: +(store.get("years") || 0),   // 0 = since 2000
+               sort: { key: "d1", dir: -1 } };
+  // the four measures, in the order of us.json's beef arrays (then the state's cows); series keys in beef.json
+  const MEASURES = { d1: "in drought (D1 or worse)", d2: "in severe drought or worse (D2-D4)",
+                     d3: "in extreme drought or worse (D3-D4)", d4: "in exceptional drought (D4)" };
+  const MEASURE_BTN = { d1: "D1 or worse", d2: "D2 or worse", d3: "D3 or worse", d4: "D4" };
+  const MEASURE_SHORT = { d1: "in drought", d2: "in severe drought or worse", d3: "in extreme drought or worse", d4: "in exceptional drought" };
+  function loadBeef() {
+    if (BEEF || !US.beef) return Promise.resolve();
+    if (!beefJob) beefJob = getJSON("data/beef.json").then(d => { BEEF = d; }, () => { BEEF = false; });
+    return beefJob;
+  }
+  // a narrower, taller drawing on phones so the fill and labels stay legible
+  const chartDims = () => window.matchMedia("(max-width: 640px)").matches
+    ? { W: 460, H: 300, L: 40, R: 68, T: 16, B: 28 } : { W: 900, H: 340, L: 46, R: 96, T: 20, B: 32 };
+  function peaks(vs, weeks, lastYear) {
+    // the three highest local peaks, at least two years apart, none in the year drawn in maroon
+    const n = vs.length, gmax = Math.max(...vs.filter(v => v != null)), cand = [], out = [];
+    for (let i = 0; i < n; i++) {
+      const v = vs[i]; if (v == null || v < 0.4 * gmax || weeks[i].slice(0, 4) === lastYear) continue;
+      let top = true;
+      for (let j = Math.max(0, i - 52); j <= Math.min(n - 1, i + 52); j++)
+        if (vs[j] != null && (vs[j] > v || (vs[j] === v && j < i))) { top = false; break; }
+      if (top) cand.push(i);
+    }
+    cand.sort((a, b) => vs[b] - vs[a]);
+    for (const i of cand) { if (out.every(k => Math.abs(k - i) > 104)) out.push(i); if (out.length === 3) break; }
+    return out;
+  }
+  function cowChart(id, vals, from) {
+    const { W, H, L, R, T, B } = chartDims();
+    const weeks = BEEF.weeks.slice(from), vs = vals.slice(from), n = weeks.length;
+    const x = i => L + (W - L - R) * i / Math.max(1, n - 1), y = v => T + (H - T - B) * (1 - v / 100), base = y(0);
+    const area = idx => {                      // one closed path per run of mapped weeks
+      let d = "", run = [];
+      const flush = () => {
+        if (!run.length) return;
+        d += `M${x(run[0]).toFixed(1)},${base}` + run.map(i => `L${x(i).toFixed(1)},${y(vs[i]).toFixed(1)}`).join("")
+          + `L${x(run[run.length - 1]).toFixed(1)},${base}Z`;
+        run = [];
+      };
+      idx.forEach(i => { if (vs[i] == null) flush(); else run.push(i); });
+      flush(); return d;
+    };
+    const all = [...vs.keys()];
+    const lastYear = weeks[n - 1].slice(0, 4);
+    const nowStart = weeks.findIndex(w => w.slice(0, 4) === lastYear);
+    const nowIdx = all.slice(Math.max(0, nowStart - 1));      // one week back so the fills join
+    const first = parse(weeks[0]).getFullYear(), last = parse(weeks[n - 1]).getFullYear();
+    let ticks = "";
+    if (n > 110) {                                   // years
+      const step = last - first > 12 ? 5 : last - first > 6 ? (W < 600 ? 2 : 1) : 1;
+      for (let yr = Math.ceil(first / step) * step; yr <= last; yr += step) {
+        const i = weeks.findIndex(w => +w.slice(0, 4) >= yr); if (i < 0) continue;
+        ticks += `<text class="ax" x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle">${yr}</text>`;
+      }
+    } else {                                         // a year or so: every third month
+      let seen = "";
+      weeks.forEach((w, i) => {
+        const ym = w.slice(0, 7); if (ym === seen) return; seen = ym;
+        const mo = +w.slice(5, 7); if ((mo - 1) % (W < 600 ? 4 : 3)) return;
+        ticks += `<text class="ax" x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle">${MON3[mo - 1]}${mo === 1 || i === 0 ? " " + w.slice(0, 4) : ""}</text>`;
+      });
+    }
+    const grid = [25, 50, 75, 100].map(v => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"></line>`).join("")
+      + [0, 25, 50, 75, 100].map(v => `<text class="ax" x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${v}${v ? "%" : ""}</text>`).join("");
+    const now = vs[n - 1];
+    const nowLine = now == null ? "" : `<line class="nowline" x1="${L}" x2="${W - R + 6}" y1="${y(now).toFixed(1)}" y2="${y(now).toFixed(1)}"></line>
+      <text class="nowlab" x="${W - R + 10}" y="${(y(now) + 4).toFixed(1)}">Now: ${pct(now)}</text>`;
+    const labs = n > 160 ? peaks(vs, weeks, lastYear).map(i => {
+      const d = parse(weeks[i]), px = Math.max(L + 44, Math.min(W - R - 44, x(i)));
+      return `<text class="peak" x="${px.toFixed(1)}" y="${Math.max(T + 10, y(vs[i]) - 8).toFixed(1)}" text-anchor="middle">${MON[d.getMonth()]} ${d.getFullYear()}: ${pct(vs[i])}</text>`;
+    }).join("") : "";
+    return `<svg class="chart" id="${id}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Share of beef cows ${MEASURES[CW.measure]} by week">
+      ${grid}${ticks}
+      <path class="area" d="${area(all)}"></path>
+      <path class="area now" d="${area(nowIdx)}"></path>
+      <line class="spine" x1="${L}" x2="${L}" y1="${T}" y2="${base}"></line>
+      <line class="spine" x1="${L}" x2="${W - R}" y1="${base}" y2="${base}"></line>
+      ${nowLine}${labs}
+      <g class="cross" hidden><line y1="${T}" y2="${base}"></line><circle class="dot" r="4.5"></circle></g>
+      <rect class="hit" x="${L}" y="${T}" width="${W - L - R}" height="${base - T}" fill="transparent"></rect></svg>`;
+  }
+  function wireChart(id, vals, from) {
+    const svg = $("#" + id), out = $("#" + id + "-out"); if (!svg) return;
+    const { W, H, L, R, T, B } = chartDims();
+    const weeks = BEEF.weeks.slice(from), vs = vals.slice(from), n = weeks.length;
+    const cross = svg.querySelector(".cross"), line = cross.querySelector("line"), dot = cross.querySelector("circle");
+    const latest = () => { cross.hidden = true; out.innerHTML = `<b>${fmt(weeks[n - 1])}</b>: ${pct(vs[n - 1])}`; };
+    const show = i => {
+      const v = vs[i];
+      out.innerHTML = `<b>${fmt(weeks[i])}</b>: ${v == null ? "no data" : pct(v)}`;
+      const px = L + (W - L - R) * i / Math.max(1, n - 1), py = T + (H - T - B) * (1 - (v || 0) / 100);
+      cross.hidden = false;
+      line.setAttribute("x1", px); line.setAttribute("x2", px);
+      dot.setAttribute("cx", px); dot.setAttribute("cy", v == null ? -20 : py);
+    };
+    const at = ev => {
+      const r = svg.getBoundingClientRect(); const px = (ev.clientX - r.left) / r.width * W;
+      return Math.max(0, Math.min(n - 1, Math.round((px - L) / (W - L - R) * (n - 1))));
+    };
+    const hit = svg.querySelector(".hit");
+    hit.addEventListener("pointermove", ev => show(at(ev)));
+    hit.addEventListener("pointerleave", latest);
+    latest();
+  }
+  function chartCard(id, who, vals, from) {
+    const y0 = BEEF.weeks[from].slice(0, 4), y1 = US.meta.map_date.slice(0, 4);
+    return `<div class="card" style="display:grid;gap:8px">
+      <div><h3>Share of ${who} beef cows ${MEASURE_SHORT[CW.measure]}, ${y0 === y1 ? y1 : `${y0}-${y1}`}</h3>
+        <p class="note">Percent of beef cows ${MEASURES[CW.measure]}, weekly (${y1} in maroon).</p></div>
+      <div class="readout" id="${id}-out"></div>
+      ${cowChart(id, vals, from)}
+      <p class="note">Source: U.S. Drought Monitor; USDA NASS, Census of Agriculture (each week uses the Census before it).</p>
+    </div>`;
+  }
+  function drawCows() {
+    const box = $("#cowsbody"), b = US.beef, m = US.meta;
+    if (!b) { box.innerHTML = `<p class="empty card">Beef cow counts aren't available for this map.</p>`; return; }
+    if (BEEF === null) { box.innerHTML = `<p class="empty card">Loading the beef cow history…</p>`; return; }
+    const stB = S.st && b.states[S.st];
+    const c = S.fips && US.counties[S.fips]; const cows = c ? c[7] : null;   // null, not false, with no county
+    const inD = c ? c[2] + c[3] + c[4] + c[5] : 0, inD2 = c ? c[3] + c[4] + c[5] : 0, inD3 = c ? c[4] + c[5] : 0;
+    // "32% in D2 or worse, 9% in D3 or worse, 1% in D4", dropping the levels at zero
+    const worse = v => [[1, "D2 or worse"], [2, "D3 or worse"], [3, "D4"]].filter(([i]) => v[i] > 0)
+      .map(([i, lab]) => `${pct(v[i])} in ${lab}`).join(", ");
+    const tiles = [`<div><p class="k">U.S. beef cows in drought</p><p class="v">${pct(b.us[0])}</p>
+        <p class="s">${worse(b.us) ? worse(b.us) + ". " : ""}Drought Monitor for ${fmt(m.map_date)}.</p></div>`];
+    if (stB) tiles.push(`<div><p class="k">${esc(m.states[S.st])} beef cows in drought</p><p class="v">${pct(stB[0])}</p>
+        <p class="s">${worse(stB) ? worse(stB) + ". " : ""}${count(stB[4])} beef cows in the ${b.census} Census.</p></div>`);
+    if (cows != null) tiles.push(`<div><p class="k">${esc(cname(S.fips))} beef cows</p><p class="v">${count(cows)}</p>
+        <p class="s">${b.census} Census. ${pct(inD)} of the county's land is in drought${inD2 > 0 ? `, ${pct(inD2)} in D2 or worse` : ""}${inD3 > 0 ? `, ${pct(inD3)} in D3 or worse` : ""}.</p></div>`);
+    const from = CW.years && BEEF ? Math.max(0, BEEF.weeks.length - Math.round(CW.years * 52.18)) : 0;
+    // state table, sortable by any column
+    const keyOf = { name: ([k]) => m.states[k], cows: ([, v]) => v[4], d1: ([, v]) => v[0], d2: ([, v]) => v[1] };
+    const { key, dir } = CW.sort;
+    const ranked = Object.entries(b.states).filter(([k]) => m.states[k]).sort((p, q) => {
+      const a = keyOf[key](p), z = keyOf[key](q);
+      return (typeof a === "string" ? a.localeCompare(z) : a - z) * dir || q[1][4] - p[1][4];
+    });
+    const th = (k, label, cls = "") => `<th class="${cls} sortable" data-key="${k}" tabindex="0" role="button"
+        aria-sort="${key === k ? (dir > 0 ? "ascending" : "descending") : "none"}">${label}<span class="arrow">${key === k ? (dir > 0 ? "▲" : "▼") : ""}</span></th>`;
+    const rows = ranked.map(([k, v]) => `<tr data-st="${k}" class="${k === S.st ? "me" : ""}" aria-selected="${k === S.st}" tabindex="0">
+        <td>${esc(m.states[k])}</td><td class="n">${count(v[4])}</td>
+        <td class="n">${pct(v[0])}<span class="rb" aria-hidden="true"><i style="width:${v[0]}%"></i></span></td>
+        <td class="n">${pct(v[1])}</td></tr>`).join("");
+    box.innerHTML = `
+      <div class="card answer">${tiles.join("")}</div>
+      ${BEEF ? `<div class="ctrls">
+        <div class="seg" role="group" aria-label="Measure">${Object.keys(MEASURES).map(k =>
+          `<button type="button" data-measure="${k}" aria-pressed="${CW.measure === k}">${MEASURE_BTN[k]}</button>`).join("")}</div>
+        <div class="seg" role="group" aria-label="Years shown">${[[0, "Since 2000"], [10, "10 years"], [3, "3 years"], [1, "1 year"]].map(([yv, lab]) =>
+          `<button type="button" data-years="${yv}" aria-pressed="${CW.years === yv}">${lab}</button>`).join("")}</div>
+      </div>
+      ${chartCard("ch-us", "U.S.", BEEF.us[CW.measure], from)}
+      ${stB && BEEF.states[S.st] ? chartCard("ch-st", esc(m.states[S.st]), BEEF.states[S.st][CW.measure], from)
+        : `<p class="note">Pick a state at the top of the page for its own chart.</p>`}` : `<p class="note">The weekly history didn't load.</p>`}
+      <div class="card" style="display:grid;gap:10px">
+        <div><h3>States by share of beef cows in drought</h3>
+          <p class="note">Drought Monitor for ${fmt(m.map_date)}; beef cows from the ${b.census} Census of Agriculture. Click a heading to sort; pick a state to see its chart.</p></div>
+        <div class="tablewrap"><table class="pt rank"><thead><tr>${th("name", "State")}${th("cows", "Beef cows", "n")}
+          ${th("d1", "D1+", "n")}${th("d2", "D2-D4", "n")}</tr></thead><tbody>${rows}</tbody></table></div>
+      </div>`;
+    box.querySelectorAll("[data-measure]").forEach(bt => bt.onclick = () => { CW.measure = bt.dataset.measure; store.set("measure", CW.measure); drawCows(); });
+    box.querySelectorAll("[data-years]").forEach(bt => bt.onclick = () => { CW.years = +bt.dataset.years; store.set("years", CW.years); drawCows(); });
+    box.querySelectorAll("th.sortable").forEach(h => {
+      const sortBy = () => {      // first click: low to high (A to Z); again: the other way
+        const k = h.dataset.key;
+        CW.sort = CW.sort.key === k ? { key: k, dir: -CW.sort.dir } : { key: k, dir: 1 };
+        drawCows();
+      };
+      h.onclick = sortBy;
+      h.onkeydown = ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); sortBy(); } };
+    });
+    box.querySelectorAll("table.rank tbody tr").forEach(tr => {
+      const choose = () => pick(tr.dataset.st, "", false, true);
+      tr.onclick = choose;
+      tr.onkeydown = ev => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); choose(); } };
+    });
+    if (!BEEF) return;
+    wireChart("ch-us", BEEF.us[CW.measure], from);
+    if (stB && BEEF.states[S.st]) wireChart("ch-st", BEEF.states[S.st][CW.measure], from);
+  }
+  window.matchMedia("(max-width: 640px)").addEventListener("change", () => { if (S.tab === "cows" && BEEF) drawCows(); });
+
+  /* ---------- tally, pickers, tabs ---------- */
+  function drawTally() {
+    const b = US.beef, m = US.meta;
+    const stats = [];
+    if (S.fips) {
+      const k = US.counties[S.fips][0];
+      stats.push(`<div class="stat"><b>${k < 0 ? "None" : cat(k).code}</b><span>${esc(cname(S.fips))}: worst category</span></div>`);
+      const best = lfpBest(S.fips);
+      if (best && !m.no_lfp[S.st]) stats.push(`<div class="stat"><b>${best.pm}</b><span>LFP payment months triggered (most of any pasture type)</span></div>`);
+    }
+    if (b && S.st && b.states[S.st]) stats.push(`<div class="stat"><b>${pct(b.states[S.st][0])}</b><span>${esc(m.states[S.st])} beef cows in drought</span></div>`);
+    if (b) stats.push(`<div class="stat"><b>${pct(b.us[0])}</b><span>U.S. beef cows in drought</span></div>`);
+    const counts = [0, 0, 0, 0, 0, 0];
+    for (const f in US.counties) if (!S.st || stOf(f) === S.st) counts[US.counties[f][0] + 1]++;
+    const tot = counts.reduce((a, v) => a + v, 0);
+    stats.push(`<div class="stat"><b>${pct((counts[3] + counts[4] + counts[5]) / tot * 100)}</b><span>${S.st ? esc(m.states[S.st]) : "U.S."} counties with some D2 or worse</span></div>`);
+    $("#tally").innerHTML = `<p class="lead">${S.fips ? `${esc(cname(S.fips))}, ${esc(m.states[S.st])}` : S.st ? esc(m.states[S.st]) : "United States"}, ${fmt(m.map_date)}</p>${stats.join("")}`;
+  }
+  function fillStates() {
+    const sel = $("#state");
+    const names = Object.entries(US.meta.states).sort((a, b) => a[1].localeCompare(b[1]));
+    // Mississippi first (the home state), then every state in order, Mississippi again among them
+    sel.innerHTML = `<option value="">Pick a state</option><option value="MS">Mississippi</option>` +
+      names.map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+    sel.onchange = () => pick(sel.value, "", true);
+    $("#county").onchange = () => pick(S.st, $("#county").value, false, true);
+  }
+  function fillCounties() {
+    const sel = $("#county");
+    sel.disabled = !S.st;
+    if (!S.st) { sel.innerHTML = `<option value="">Pick a county</option>`; return; }
+    const fs = Object.keys(US.counties).filter(f => stOf(f) === S.st).sort((a, b) => cname(a).localeCompare(cname(b)));
+    sel.innerHTML = `<option value="">Pick a county</option>` + fs.map(f => `<option value="${f}">${esc(cname(f))}</option>`).join("");
+    sel.value = S.fips || "";
+  }
+  async function loadState(st) {
+    const jobs = [];
+    if (!SGEO[st]) jobs.push(getJSON(`geo/${st.toLowerCase()}.json`).then(g => { SGEO[st] = g; }));
+    if (!(st in LFP)) jobs.push(getJSON(`data/lfp/${st.toLowerCase()}.json`).then(d => { LFP[st] = d; }, () => { LFP[st] = null; }));
+    await Promise.all(jobs);
+  }
+  async function pick(st, fips, scroll, zoom) {
+    const newState = st !== S.st;
+    S.st = st || ""; S.fips = fips || "";
+    store.set("st", S.st); store.set("fips", S.fips);
+    writeHash();
+    $("#state").value = S.st;
+    if (!S.st) { $("#statesec").hidden = true; fillCounties(); markUSState(); drawTally(); drawLFP(); return; }
+    await loadState(S.st);
+    fillCounties(); markUSState();
+    $("#statesec").hidden = false;
+    $("#st-h").textContent = `${US.meta.states[S.st]} counties`;
+    $("#st-sub").textContent = `Worst drought category on each county, ${fmt(US.meta.map_date)}.`;
+    if (newState) drawState();
+    markCounty();
+    if (S.fips && (zoom || newState)) zoomToCounty(S.fips);
+    drawInfo(); drawTally(); drawLFP();
+    if (S.tab === "cows") drawCows();
+    if (scroll && S.tab === "map") $("#statesec").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function setTab(t, scroll) {
+    S.tab = t;
+    document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
+    $("#map").hidden = t !== "map"; $("#lfp").hidden = t !== "lfp"; $("#about").hidden = t !== "about";
+    $("#cows").hidden = t !== "cows";
+    if (t === "cows") loadBeef().then(drawCows);
+    writeHash();
+    if (scroll) window.scrollTo({ top: $("main").getBoundingClientRect().top + window.scrollY - $(".tabs").offsetHeight,
+                                  behavior: "smooth" });
+  }
+  function writeHash() {
+    const h = `#${S.tab}${S.fips ? "-" + S.fips : S.st ? "-" + S.st : ""}`;
+    try { if (location.hash !== h) history.replaceState(null, "", h); } catch (e) { /* sandboxed frame */ }
+  }
+  function readHash() {
+    const m = location.hash.match(/^#(map|lfp|cows|about)(?:[-\/]([A-Z]{2}|\d{5}))?$/);
+    if (!m) return null;
+    const v = m[2] || "";
+    return { tab: m[1], st: /^\d/.test(v) ? stOf(v) : v, fips: /^\d/.test(v) ? v : "" };
+  }
+
+  /* ---------- start ---------- */
+  Promise.all([getJSON("data/us.json"), getJSON("geo/us.json")]).then(([u, g]) => {
+    US = u; GEO = g;
+    const m = US.meta;
+    $("#asof").textContent = `U.S. Drought Monitor for ${fmt(m.map_date)} (released ${fmt(m.released, false)}).`;   // the FSA list date is on the LFP tab
+    if (m.rate) $("#foot-rate").textContent = `Payment estimates use ${m.rate.official ? "FSA's" : "an estimate of FSA's"} ${m.year} monthly feed cost for an adult beef cow, ${money(m.rate.feed_cost)}` +
+      (m.rate.official ? "." : `: FSA hasn't posted the ${m.year} rate, so this is the statutory formula with USDA NASS corn prices, which matches FSA's 2022-2025 rates within a few cents.`) +
+      ` LFP pays 60% of it, ${money(m.rate.month)} per cow a month` +
+      (m.rate.sequester ? `, less the ${pctOf(m.rate.sequester)} sequestration cut (${money(m.rate.month * (1 - m.rate.sequester))}).` : ".");
+    if (US.beef) $("#foot-cows").textContent += ` Counts from the ${US.beef.census} Census of Agriculture (USDA NASS).`;
+    $("#about-deadline").textContent = `${deadline(m.year)} for ${m.year} losses`;
+    if (m.rate && m.rate.sequester) $("#about-seq").textContent = `: ${pctOf(m.rate.sequester)} for payments made in fiscal year ${m.rate.fy}`;
+    $("#lnk-prog").href = m.links.program; $("#lnk-maps").href = m.links.maps;
+    const ver = document.querySelector('meta[name="version"]');   // stamped by the build; absent on the review copy
+    $("#foot-gen").textContent = `Updated ${m.generated.replace(" ", " at ")} from the Drought Monitor for ${fmt(m.map_date)}.` +
+      (ver ? ` Version ${ver.content}.` : "");
+    drawUS(); setupStateMap(); fillStates();
+    document.querySelectorAll(".tab").forEach(b => b.onclick = () => setTab(b.dataset.tab));
+    document.querySelectorAll("a[data-tab]").forEach(a => a.onclick = ev => { ev.preventDefault(); setTab(a.dataset.tab, true); });
+    const h = readHash();
+    const st = h ? h.st : store.get("st") || "", fips = h ? h.fips : store.get("fips") || "";
+    setTab(h ? h.tab : "map");
+    pick(US.meta.states[st] ? st : "", US.counties[fips] && stOf(fips) === st ? fips : "", false, true);
+    drawTally();
+    window.addEventListener("hashchange", () => {   // a shared link opened in the same tab
+      const h = readHash(); if (!h) return;
+      setTab(h.tab);
+      if (h.st !== S.st || h.fips !== S.fips) pick(US.meta.states[h.st] ? h.st : "", h.fips, false, true);
+    });
+  }).catch(err => {
+    $("#asof").textContent = "The drought data didn't load. Try again in a minute.";
+    console.error(err);
+  });
+})();
+</script>
+
+</body>
+</html>
