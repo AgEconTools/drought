@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Beef Cattle Drought Tracker</title>
 <meta name="description" content="This week's U.S. Drought Monitor by county, the share of beef cows in drought, and where each county stands on Livestock Forage Disaster Program (LFP) payments.">
-<meta name="version" content="12">
+<meta name="version" content="13">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -874,6 +874,9 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     const cut = rate ? rate.sequester || 0 : 0;
     const net = v => v * (1 - cut);
     const listNote = meta.fsa_list ? `FSA's list of ${fmt(meta.fsa_list, false)}` : "FSA's list";
+    // early in the year, before FSA posts the year's first list of eligible counties
+    const nolist = meta.fsa_list ? "" : `<p class="callout">FSA hasn't posted its ${meta.year} list of eligible
+      counties yet, so these levels come from the Drought Monitor alone and haven't been checked against FSA's list.</p>`;
     const carried = meta.ngp_year && meta.ngp_year < meta.year ? `<p class="note">FSA's ${meta.year} grazing periods aren't
       available yet for counties not on its weekly list; those use the ${meta.ngp_year} periods moved forward a year.</p>` : "";
     const offices = c.o.length > 1 ? `<p class="note">FSA has ${c.o.length} offices in this county (${c.o.map(o => esc(o.name)).join(", ")}),
@@ -906,10 +909,10 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
         <div><p class="k">Most of any pasture type</p><p class="v">${best} <span style="font-size:18px">${best === 1 ? "month" : "months"}</span></p>
           <p class="s">${best ? `${listing(bestTypes)}` : "No pasture type has reached a payment level yet"}</p></div>
       </div>
-      ${offices}${carried}
+      ${nolist}${offices}${carried}
       <div class="card" style="display:grid;gap:12px">
         <div><h3>By pasture type</h3>
-          <p class="note">Drought Monitor for ${fmt(meta.map_date)}; checked against ${listNote}. Pick a row to see how close it is to the next level. Each pasture type has its own grazing period.</p></div>
+          <p class="note">Drought Monitor for ${fmt(meta.map_date)}${meta.fsa_list ? `; checked against ${listNote}` : ""}. Pick a row to see how close it is to the next level. Each pasture type has its own grazing period.</p></div>
         <div class="tablewrap"><table class="pt"><thead><tr><th>Pasture type</th><th class="hide-sm">Normal grazing period</th>
           <th class="n">Payment months</th><th class="n hide-sm">${listNote}</th><th class="n">Est. payment per cow</th></tr></thead><tbody>${rows}</tbody></table></div>
       </div>
