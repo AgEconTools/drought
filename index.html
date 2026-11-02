@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Beef Cattle Drought Tracker</title>
 <meta name="description" content="This week's U.S. Drought Monitor by county, the share of beef cows in drought, and where each county stands on Livestock Forage Disaster Program (LFP) payments.">
-<meta name="version" content="13">
+<meta name="version" content="14">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -560,7 +560,12 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
   };
   const S = { tab: "map", st: "", fips: "", pasture: store.get("pasture") || "", cows: +(store.get("cows") || 50) };
   let US = null, GEO = null;
-  const SGEO = {}, LFP = {};
+  const SGEO = {}, LFP = {};      // LFP["2026/MS"]: one file per state and live program year
+  // the program years live on this map (two from October through March 1), the one
+  // picked on the LFP tab, and the one the map tab and header use (shown first)
+  const lfpFirst = () => US.meta.lfp.first;
+  const lfpYear = () => US.meta.lfp.years.includes(S.ly) ? S.ly : lfpFirst();
+  const lfpOf = (st, y) => LFP[`${y}/${st}`];
 
   const parse = iso => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); };
   const fmt = (iso, year = true) => { const d = parse(iso);
@@ -593,7 +598,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
       .map(([j, v]) => `<div class="row"><span>${swatch(j)}${cat(j).code}</span><span>${pct(v)}</span></div>`).join("");
     tip.innerHTML = `<b>${esc(cname(f))}, ${stOf(f)}</b>${k < 0 ? "No drought" : `Worst: ${cat(k).code} ${cat(k).name}`}
       ${rows ? `<div style="margin-top:6px">${rows}</div>` : ""}
-      ${lfp ? `<div style="margin-top:6px">LFP: ${plural(lfp, "payment month")} triggered</div>` : ""}
+      ${lfp ? `<div style="margin-top:6px">LFP ${lfpFirst()}: ${plural(lfp, "payment month")} triggered</div>` : ""}
       ${cows != null && US.beef ? `<div style="margin-top:${lfp ? 0 : 6}px">Beef cows: ${count(cows)} (${US.beef.census} Census)</div>` : ""}`;
     tip.hidden = false;
     const x = Math.min(ev.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
@@ -748,7 +753,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
 
   /* ---------- county card on the map tab ---------- */
   function lfpBest(f) {
-    const L = LFP[S.st]; const c = L && L.counties[f];
+    const L = lfpOf(S.st, lfpFirst()); const c = L && L.counties[f];
     if (!c || !c.o.length) return null;
     return c.o.flatMap(o => o.p).sort(byUse)[0];
   }
@@ -766,8 +771,8 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     const cowTxt = cows != null && US.beef ? `<p class="small" style="margin:0">Beef cows: <b>${count(cows)}</b> (${US.beef.census} Census),
       ${pct(d1 + d2 + d3 + d4)} of the county's land in drought.</p>` : "";
     const lfpTxt = US.meta.no_lfp[S.st] ? `<p class="small">${esc(US.meta.no_lfp[S.st])}</p>`
-      : best == null ? `<p class="small">FSA lists no grazing periods for this county; a neighboring county's FSA office handles it.${neighborLinks(LFP[S.st])}</p>`
-      : `<p class="lfpline">LFP ${US.meta.year}: <b>${plural(best.pm, "payment month")}</b> triggered so far${
+      : best == null ? `<p class="small">FSA lists no grazing periods for this county; a neighboring county's FSA office handles it.${neighborLinks(lfpOf(S.st, lfpFirst()))}</p>`
+      : `<p class="lfpline">LFP ${lfpFirst()}: <b>${plural(best.pm, "payment month")}</b> triggered so far${
           best.pm ? ` for ${esc(best.t.toLowerCase())}` : ""}.</p>`;
     box.innerHTML = `<h3>${esc(cname(S.fips))}</h3>
       <div>${chip(k)}</div>
@@ -834,7 +839,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     </div>`;
   }
   function strip(c, p) {
-    const L = LFP[S.st]; const [first, n] = L.weeks;
+    const L = lfpOf(S.st, lfpYear()); const [first, n] = L.weeks;
     const d0 = parse(first), s = parse(p.s), e = parse(p.e);
     let cells = "", labs = "";
     for (let i = 0; i < n; i++) {
@@ -849,19 +854,39 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     return `<div class="strip" role="img" aria-label="Worst drought category each week; the grazing period is drawn taller">${cells}</div>
       <div class="striplab" aria-hidden="true">${labs}</div>`;
   }
+  // two program years overlap from October through March 1: a switch between
+  // them, and a line on why the one picked matters now
+  function yearHead(yr, Y) {
+    const lf = US.meta.lfp, mapYear = parse(US.meta.map_date).getFullYear();
+    if (lf.years.length < 2) return "";
+    const seg = `<div class="ctrls"><div class="seg" role="group" aria-label="LFP program year">${lf.years.map(y =>
+      `<button type="button" data-ly="${y}" aria-pressed="${y === yr}">${y} program year</button>`).join("")}</div></div>`;
+    const why = yr < mapYear
+      ? `<p class="callout">The ${yr} grazing periods have all ended. FSA's deadline for ${yr} applications is ${fmt(Y.deadline)}.</p>`
+      : yr > mapYear
+        ? `<p class="note">The ${yr} program year has begun for pasture types grazed in fall and winter, such as small grains
+            and annual ryegrass; most ${yr} grazing periods haven't started yet.${Y.rate ? "" : ` FSA hasn't set the ${yr} payment
+            rate, so no dollar estimate is shown.`}</p>` : "";
+    return seg + why;
+  }
+  function wireYears(box) {
+    box.querySelectorAll("[data-ly]").forEach(b => b.onclick = () => { S.ly = +b.dataset.ly; drawLFP(); });
+  }
   function drawLFP() {
     const box = $("#lfpbody");
     const meta = US.meta;
     $("#lfp-h").textContent = S.fips ? `Where ${cname(S.fips)} stands on LFP payments` : "Where your county stands on LFP payments";
     if (!S.st) { box.innerHTML = `<p class="empty card">Pick your state and county at the top of the page.</p>`; return; }
     if (meta.no_lfp[S.st]) { box.innerHTML = `<p class="callout">${esc(meta.no_lfp[S.st])} Check FSA's list of eligible counties for ${esc(meta.states[S.st])}.</p>`; return; }
-    const L = LFP[S.st];
-    if (!L) { box.innerHTML = `<p class="empty card">LFP grazing periods for ${meta.year} aren't available here yet. Check FSA's weekly list.</p>`; return; }
-    if (!S.fips) { box.innerHTML = `<p class="empty card">Pick your county at the top of the page, or on the map.</p>`; return; }
+    const yr = lfpYear(), Y = meta.lfp.by[yr], head = yearHead(yr, Y);
+    const show = html => { box.innerHTML = head + html; wireYears(box); };
+    const L = lfpOf(S.st, yr);
+    if (!L) { show(`<p class="empty card">LFP grazing periods for ${yr} aren't available here yet. Check FSA's weekly list.</p>`); return; }
+    if (!S.fips) { show(`<p class="empty card">Pick your county at the top of the page, or on the map.</p>`); return; }
     const c = L.counties[S.fips];
     if (!c || !c.o.length) {
-      box.innerHTML = `<p class="callout">FSA lists no grazing periods for ${esc(cname(S.fips))}; producers there are served by a
-        neighboring county's FSA office.${neighborLinks(L)}</p>`;
+      show(`<p class="callout">FSA lists no grazing periods for ${esc(cname(S.fips))}; producers there are served by a
+        neighboring county's FSA office.${neighborLinks(L)}</p>`);
       wireNeighbors(box);
       return;
     }
@@ -870,15 +895,15 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
       || all.find(p => p.t === ORDER[0]) || all.find(p => p.t === ORDER[1]) || all[0];
     const best = Math.max(...all.map(p => p.pm));
     const bestTypes = all.filter(p => p.pm === best).map(p => p.t.toLowerCase());
-    const rate = meta.rate;
+    const rate = Y.rate;
     const cut = rate ? rate.sequester || 0 : 0;
     const net = v => v * (1 - cut);
-    const listNote = meta.fsa_list ? `FSA's list of ${fmt(meta.fsa_list, false)}` : "FSA's list";
+    const listNote = Y.fsa_list ? `FSA's list of ${fmt(Y.fsa_list, false)}` : "FSA's list";
     // early in the year, before FSA posts the year's first list of eligible counties
-    const nolist = meta.fsa_list ? "" : `<p class="callout">FSA hasn't posted its ${meta.year} list of eligible
+    const nolist = Y.fsa_list ? "" : `<p class="callout">FSA hasn't posted its ${yr} list of eligible
       counties yet, so these levels come from the Drought Monitor alone and haven't been checked against FSA's list.</p>`;
-    const carried = meta.ngp_year && meta.ngp_year < meta.year ? `<p class="note">FSA's ${meta.year} grazing periods aren't
-      available yet for counties not on its weekly list; those use the ${meta.ngp_year} periods moved forward a year.</p>` : "";
+    const carried = Y.ngp_year && Y.ngp_year < yr ? `<p class="note">FSA's ${yr} grazing periods aren't
+      available yet for counties not on its weekly list; those use the ${Y.ngp_year} periods moved forward ${yr - Y.ngp_year > 1 ? `${yr - Y.ngp_year} years` : "a year"}.</p>` : "";
     const offices = c.o.length > 1 ? `<p class="note">FSA has ${c.o.length} offices in this county (${c.o.map(o => esc(o.name)).join(", ")}),
       each with its own grazing periods. The drought figures are for the whole county, so FSA's list may differ for an office that covers only part of it.</p>` : "";
     const rows = all.map(p => {
@@ -895,24 +920,25 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     const nextLv = LEVELS.find(([lv]) => lv > sel.lv && lv <= sel.cap && nx[lv] != null);
     const nextTxt = nextLv ? `${plural(nx[nextLv[0]], "more week")} at ${cat(NEED[nextLv[0]]).code} would make it ${months(nextLv[0])}`
       : sel.lv >= sel.cap ? "The most this grazing period allows" : sel.left ? "No higher level is possible before the grazing period ends" : "The grazing period has ended";
-    box.innerHTML = `
+    const notYet = parse(sel.s) > parse(meta.map_date) ? `The grazing period starts ${fmt(sel.s)}. ` : "";
+    show(`
       <div class="card answer">
         ${rate ? `<div><p class="k">Estimated LFP payment, ${esc(sel.t.toLowerCase())}</p>
           <p class="v">${money(net(sel.pm * rate.month))} <span style="font-size:18px">per cow</span></p>
           <p class="s">${months(sel.pm)} × ${money(rate.month)} a month${rate.official ? "" : " (estimated)"}${cut ? `, <span class="cut">less the ${pctOf(cut)} sequestration cut</span>` : ""}.
-          FSA pays eligible livestock producers with qualifying grazing losses; applications are due ${deadline(meta.year)}. For
+          FSA pays eligible livestock producers with qualifying grazing losses; applications are due ${deadline(yr)}. For
           <label><input id="cow-n" type="number" min="0" step="1" value="${S.cows}" style="width:80px;padding:3px 6px;border:1px solid var(--rule);border-radius:6px;background:var(--surface)"></label>
           cows: <b id="cowtot">${money0(net(sel.pm * rate.month * S.cows))}</b></p></div>` : ""}
         <div><p class="k">Payment months triggered, ${esc(sel.t.toLowerCase())}</p>
           <p class="v">${sel.pm} <span style="font-size:18px">of ${sel.cap}</span></p>
-          <p class="s">${nextTxt}${sel.left ? `; ${plural(sel.left, "map")} left in the grazing period` : ""}.</p></div>
+          <p class="s">${notYet}${nextTxt}${sel.left ? `; ${plural(sel.left, "map")} left in the grazing period` : ""}.</p></div>
         <div><p class="k">Most of any pasture type</p><p class="v">${best} <span style="font-size:18px">${best === 1 ? "month" : "months"}</span></p>
           <p class="s">${best ? `${listing(bestTypes)}` : "No pasture type has reached a payment level yet"}</p></div>
       </div>
       ${nolist}${offices}${carried}
       <div class="card" style="display:grid;gap:12px">
         <div><h3>By pasture type</h3>
-          <p class="note">Drought Monitor for ${fmt(meta.map_date)}${meta.fsa_list ? `; checked against ${listNote}` : ""}. Pick a row to see how close it is to the next level. Each pasture type has its own grazing period.</p></div>
+          <p class="note">Drought Monitor for ${fmt(meta.map_date)}${Y.fsa_list ? `; checked against ${listNote}` : ""}. Pick a row to see how close it is to the next level. Each pasture type has its own grazing period.</p></div>
         <div class="tablewrap"><table class="pt"><thead><tr><th>Pasture type</th><th class="hide-sm">Normal grazing period</th>
           <th class="n">Payment months</th><th class="n hide-sm">${listNote}</th><th class="n">Est. payment per cow</th></tr></thead><tbody>${rows}</tbody></table></div>
       </div>
@@ -924,10 +950,10 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
         <div><h3 style="font-size:15px">The five levels, and what the next one takes</h3>
           <p class="note">Weeks to go assume every remaining week is at the category shown.</p></div>
         ${ladder(sel)}
-        <div><h3 style="font-size:15px;margin-bottom:6px">Worst category each week, ${span(LFP[S.st].weeks[0], meta.map_date).replace(" – ", " to ")}</h3>
+        <div><h3 style="font-size:15px;margin-bottom:6px">Worst category each week, ${span(L.weeks[0], meta.map_date).replace(" – ", " to ")}</h3>
           ${strip(c, sel)}
           <p class="note" style="margin-top:6px">Tall bars are weeks in this pasture type's grazing period.</p></div>
-      </div>`;
+      </div>`);
     box.querySelectorAll("table.pt tbody tr").forEach(tr => {
       const choose = () => { S.pasture = tr.dataset.t; S.office = tr.dataset.o; store.set("pasture", S.pasture); drawLFP(); };
       tr.onclick = choose;
@@ -1145,7 +1171,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
       const k = US.counties[S.fips][0];
       stats.push(`<div class="stat"><b>${k < 0 ? "None" : cat(k).code}</b><span>${esc(cname(S.fips))}: worst category</span></div>`);
       const best = lfpBest(S.fips);
-      if (best && !m.no_lfp[S.st]) stats.push(`<div class="stat"><b>${best.pm}</b><span>LFP payment months triggered (most of any pasture type)</span></div>`);
+      if (best && !m.no_lfp[S.st]) stats.push(`<div class="stat"><b>${best.pm}</b><span>LFP ${lfpFirst()} payment months triggered (most of any pasture type)</span></div>`);
     }
     if (b && S.st && b.states[S.st]) stats.push(`<div class="stat"><b>${pct(b.states[S.st][0])}</b><span>${esc(m.states[S.st])} beef cows in drought</span></div>`);
     if (b) stats.push(`<div class="stat"><b>${pct(b.us[0])}</b><span>U.S. beef cows in drought</span></div>`);
@@ -1175,7 +1201,10 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
   async function loadState(st) {
     const jobs = [];
     if (!SGEO[st]) jobs.push(getJSON(`geo/${st.toLowerCase()}.json`).then(g => { SGEO[st] = g; }));
-    if (!(st in LFP)) jobs.push(getJSON(`data/lfp/${st.toLowerCase()}.json`).then(d => { LFP[st] = d; }, () => { LFP[st] = null; }));
+    for (const y of US.meta.lfp.years) {
+      const k = `${y}/${st}`;
+      if (!(k in LFP)) jobs.push(getJSON(`data/lfp/${y}/${st.toLowerCase()}.json`).then(d => { LFP[k] = d; }, () => { LFP[k] = null; }));
+    }
     await Promise.all(jobs);
   }
   async function pick(st, fips, scroll, zoom) {
@@ -1223,13 +1252,14 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     US = u; GEO = g;
     const m = US.meta;
     $("#asof").textContent = `U.S. Drought Monitor for ${fmt(m.map_date)} (released ${fmt(m.released, false)}).`;   // the FSA list date is on the LFP tab
-    if (m.rate) $("#foot-rate").textContent = `Payment estimates use ${m.rate.official ? "FSA's" : "an estimate of FSA's"} ${m.year} monthly feed cost for an adult beef cow, ${money(m.rate.feed_cost)}` +
-      (m.rate.official ? "." : `: FSA hasn't posted the ${m.year} rate, so this is the statutory formula with USDA NASS corn prices, which matches FSA's 2022-2025 rates within a few cents.`) +
-      ` LFP pays 60% of it, ${money(m.rate.month)} per cow a month` +
-      (m.rate.sequester ? `, less the ${pctOf(m.rate.sequester)} sequestration cut (${money(m.rate.month * (1 - m.rate.sequester))}).` : ".");
+    const fy = lfpFirst(), fr = m.lfp.by[fy].rate;
+    if (fr) $("#foot-rate").textContent = `Payment estimates use ${fr.official ? "FSA's" : "an estimate of FSA's"} ${fy} monthly feed cost for an adult beef cow, ${money(fr.feed_cost)}` +
+      (fr.official ? "." : `: FSA hasn't posted the ${fy} rate, so this is the statutory formula with USDA NASS corn prices, which matches FSA's 2022-2025 rates within a few cents.`) +
+      ` LFP pays 60% of it, ${money(fr.month)} per cow a month` +
+      (fr.sequester ? `, less the ${pctOf(fr.sequester)} sequestration cut (${money(fr.month * (1 - fr.sequester))}).` : ".");
     if (US.beef) $("#foot-cows").textContent += ` Counts from the ${US.beef.census} Census of Agriculture (USDA NASS).`;
-    $("#about-deadline").textContent = `${deadline(m.year)} for ${m.year} losses`;
-    if (m.rate && m.rate.sequester) $("#about-seq").textContent = `: ${pctOf(m.rate.sequester)} for payments made in fiscal year ${m.rate.fy}`;
+    $("#about-deadline").textContent = `${deadline(fy)} for ${fy} losses`;
+    if (fr && fr.sequester) $("#about-seq").textContent = `: ${pctOf(fr.sequester)} for payments made in fiscal year ${fr.fy}`;
     $("#lnk-prog").href = m.links.program; $("#lnk-maps").href = m.links.maps;
     const ver = document.querySelector('meta[name="version"]');   // stamped by the build; absent on the review copy
     $("#foot-gen").textContent = `Updated ${m.generated.replace(" ", " at ")} from the Drought Monitor for ${fmt(m.map_date)}.` +
