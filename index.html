@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Beef Cattle Drought Tracker</title>
 <meta name="description" content="This week's U.S. Drought Monitor by county, the share of beef cows in drought, and where each county stands on Livestock Forage Disaster Program (LFP) payments.">
-<meta name="version" content="18">
+<meta name="version" content="19">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -597,6 +597,8 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
   const count = v => Math.round(v).toLocaleString("en-US");
   const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
   const pctOf = r => `${(r * 100).toFixed(1).replace(/\.0$/, "")}%`;
+  // a fiscal year OMB hasn't published a sequestration rate for carries an earlier year's forward
+  const seqEst = r => r.sequester_fy != null && r.sequester_fy !== r.fy;
   const months = n => n === 1 ? "1 month" : `${n} months`;
   const deadline = year => `March 1, ${year + 1}`;     // LFP: apply by March 1 after the program year
   const listing = xs => xs.length > 3 ? `${xs.slice(0, 2).join(", ")} and ${xs.length - 2} other types`
@@ -959,6 +961,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     const bestTypes = all.filter(p => p.pm === best).map(p => p.t.toLowerCase());
     const rate = Y.rate;
     const cut = rate ? rate.sequester || 0 : 0;
+    const cutWord = rate && seqEst(rate) ? "an estimated" : "the";
     const net = v => v * (1 - cut);
     const listNote = Y.fsa_list ? `FSA's list of ${fmt(Y.fsa_list, false)}` : "FSA's list";
     // early in the year, before FSA posts the year's first list of eligible counties
@@ -989,7 +992,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
       <div class="card answer">
         ${rate ? `<div><p class="k">Estimated LFP payment, ${esc(sel.t.toLowerCase())}</p>
           <p class="v">${money(net(sel.pm * rate.month))} <span style="font-size:18px">per cow</span></p>
-          <p class="s">${months(sel.pm)} × ${money(rate.month)} a month${rate.official ? "" : " (estimated)"}${cut ? `, <span class="cut">less the ${pctOf(cut)} sequestration cut</span>` : ""}.
+          <p class="s">${months(sel.pm)} × ${money(rate.month)} a month${rate.official ? "" : " (estimated)"}${cut ? `, <span class="cut">less ${cutWord} ${pctOf(cut)} sequestration cut</span>` : ""}.
           <a href="#about" data-goto="about-pay">How this is calculated</a></p>
           <p class="s herd"><label>For <input id="cow-n" type="number" min="0" step="1" value="${S.cows}" style="width:80px;padding:3px 6px;border:1px solid var(--rule);border-radius:6px;background:var(--surface)">
           cows:</label> <b id="cowtot">${money0(net(sel.pm * rate.month * S.cows))}</b></p></div>` : ""}
@@ -1337,10 +1340,11 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     if (fr) $("#foot-rate").textContent = `Payment estimates use ${fr.official ? "FSA's" : "an estimate of FSA's"} ${fy} monthly feed cost for an adult beef cow, ${money(fr.feed_cost)}` +
       (fr.official ? "." : `: FSA hasn't posted the ${fy} rate, so this is the statutory formula with USDA NASS corn prices, which matches FSA's 2022-2025 rates within a few cents.`) +
       ` LFP pays 60% of it, ${money(fr.month)} per cow a month` +
-      (fr.sequester ? `, less the ${pctOf(fr.sequester)} sequestration cut (${money(fr.month * (1 - fr.sequester))}).` : ".");
+      (fr.sequester ? `, less ${seqEst(fr) ? "an estimated" : "the"} ${pctOf(fr.sequester)} sequestration cut (${money(fr.month * (1 - fr.sequester))}).` : ".");
     if (US.beef) $("#foot-cows").textContent += ` Counts from the ${US.beef.census} Census of Agriculture (USDA NASS).`;
     $("#about-deadline").textContent = `${deadline(fy)} for ${fy} losses`;
-    if (fr && fr.sequester) $("#about-seq").textContent = `: ${pctOf(fr.sequester)} for payments made in fiscal year ${fr.fy}`;
+    if (fr && fr.sequester) $("#about-seq").textContent = `: ${pctOf(fr.sequester)} for payments made in fiscal year ${fr.fy}` +
+      (seqEst(fr) ? ` (our estimate, fiscal year ${fr.sequester_fy}'s rate, until OMB publishes the fiscal year ${fr.fy} rate)` : "");
     $("#lnk-prog").href = m.links.program; $("#lnk-maps").href = m.links.maps;
     const ver = document.querySelector('meta[name="version"]');   // stamped by the build; absent on the review copy
     $("#foot-gen").textContent = `Updated ${m.generated.replace(" ", " at ")} from the Drought Monitor for ${fmt(m.map_date)}.` +
