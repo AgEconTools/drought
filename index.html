@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Beef Cattle Drought Tracker</title>
 <meta name="description" content="This week's U.S. Drought Monitor by county, the share of beef cows in drought, and where each county stands on Livestock Forage Disaster Program (LFP) payments.">
-<meta name="version" content="21">
+<meta name="version" content="22">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -515,6 +515,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
             is 15.7 pounds of corn a day for 30 days at the year's corn price; other livestock are converted to that
             with FSA's animal-unit factors. If the feed cost based on the land's normal carrying capacity is lower, that
             is used instead.</li>
+          <li id="about-rate" hidden></li>
           <li>The payment is the monthly rate times the payment months times the eligible animals. Payment months are
             a multiplier, not a schedule of checks: FSA pays after the application is processed, with the balance if the
             county reaches a higher level later in the grazing period.</li>
@@ -528,7 +529,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
           Budget and Emergency Deficit Control Act.</p>
       </div>
       <div class="card">
-        <h3>Where this page's numbers come from</h3>
+        <h3 id="about-src">Where this page's numbers come from</h3>
         <ul>
           <li>Drought: U.S. Drought Monitor county statistics (National Drought Mitigation Center at the University of
             Nebraska-Lincoln, USDA and NOAA), the share of each county's area in each category. A county's color is the
@@ -1049,7 +1050,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
       <div class="card answer">
         ${rate ? `<div><p class="k">Estimated LFP payment, ${esc(sel.t.toLowerCase())}</p>
           <p class="v">${money(net(sel.pm * rate.month))} <span style="font-size:18px">per cow</span></p>
-          <p class="s">${months(sel.pm)} × ${money(rate.month)} a month${rate.official ? "" : " (estimated)"}${cut ? `, <span class="cut">less ${cutWord} ${pctOf(cut)} sequestration cut</span>` : ""}.
+          <p class="s">${months(sel.pm)} × ${money(rate.month)} a month${rate.official ? "" : ` (our estimate until FSA posts the ${yr} rate)`}${cut ? `, <span class="cut">less ${cutWord} ${pctOf(cut)} sequestration cut</span>` : ""}.
           <a href="#about" data-goto="about-pay">How this is calculated</a></p>
           <p class="s herd"><label>For <input id="cow-n" type="number" min="0" step="1" value="${S.cows}" style="width:80px;padding:3px 6px;border:1px solid var(--rule);border-radius:6px;background:var(--surface)">
           cows:</label> <b id="cowtot">${money0(net(sel.pm * rate.month * S.cows))}</b></p></div>` : ""}
@@ -1406,6 +1407,12 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
       ` LFP pays 60% of it, ${money(fr.month)} per cow a month` +
       (fr.sequester ? `, less ${seqEst(fr) ? "an estimated" : "the"} ${pctOf(fr.sequester)} sequestration cut (${money(fr.month * (1 - fr.sequester))}).` : ".");
     if (US.beef) $("#foot-cows").textContent += ` Counts from the ${US.beef.census} Census of Agriculture (USDA NASS).`;
+    if (fr && !fr.official) {
+      const li = $("#about-rate"); li.hidden = false;
+      li.innerHTML = `FSA hasn't posted its ${fy} monthly feed cost yet; it usually does early the next year. Until then, the
+        dollar figures on this page use our own estimate of it; see <a href="#about-src" data-goto="about-src">where this
+        page's numbers come from</a>.`;
+    }
     $("#about-deadline").textContent = `${deadline(fy)} for ${fy} losses`;
     if (fr && fr.sequester) $("#about-seq").textContent = `: ${pctOf(fr.sequester)} for payments made in fiscal year ${fr.fy}` +
       (seqEst(fr) ? ` (our estimate, fiscal year ${fr.sequester_fy}'s rate, until OMB publishes the fiscal year ${fr.fy} rate)` : "");
