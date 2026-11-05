@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Beef Cattle Drought Tracker</title>
 <meta name="description" content="This week's U.S. Drought Monitor by county, the share of beef cows in drought, and where each county stands on Livestock Forage Disaster Program (LFP) payments.">
-<meta name="version" content="23">
+<meta name="version" content="24">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -494,19 +494,21 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
           ("D2" means D2, D3 or D4).</p>
         <div class="tablewrap"><table class="pt rules"><thead><tr><th>Drought Monitor rating</th><th class="n">Payment months</th></tr></thead><tbody>
           <tr><td>D2 (severe) for 4 weeks in a row</td><td class="n lv">1</td></tr>
-          <tr><td>D2 for 7 of 8 weeks in a row (on FSA's list, the first 4 in a row)</td><td class="n lv">2</td></tr>
+          <tr><td>D2 for 7 of 8 weeks</td><td class="n lv">2</td></tr>
           <tr><td>D3 (extreme) at any time</td><td class="n lv">3</td></tr>
           <tr><td>D3 for 4 weeks (not necessarily in a row), or D4 (exceptional) at any time</td><td class="n lv">4</td></tr>
           <tr><td>D4 for 4 weeks</td><td class="n lv">5</td></tr>
         </tbody></table></div>
+        <p>FSA's weekly list has credited the second month only when the 8 weeks start with 4 weeks in a row of D2.
+          This page follows FSA's list.</p>
         <p>A county reaches each level as the drought does, and FSA's weekly list of eligible counties records the
           level for each county and pasture type. These are the triggers for program year 2026 on; a July 2025 law
           lowered the D2 trigger from 8 weeks to 4 and added the 7-of-8-weeks trigger.</p>
         <p>The Drought Monitor's authors can see the reports producers file through the National Drought Mitigation
           Center's <a href="https://droughtimpacts.unl.edu/Tools/ConditionMonitoringObservations.aspx" target="_blank" rel="noopener">Condition Monitoring Observer Reports (CMOR)</a>. A
           report becomes part of the record, but it doesn't by itself change the map or a county's LFP level.</p>
-        <p class="src">Source: 7 U.S.C. 9081(c)(3)(D), as amended by Public Law 119-21 (July 4, 2025); 7 CFR 1416.207,
-          as amended July 9, 2026; FSA's weekly list of eligible counties.</p>
+        <p class="src">Source: 7 U.S.C. 9081(c)(3)(D), as amended by Public Law 119-21 (July 4, 2025); 7 CFR 1416.205(a)(3)
+          and 1416.207, as amended July 9, 2026; FSA's weekly list of eligible counties.</p>
       </div>
       <div class="card">
         <h3>Normal grazing periods</h3>
@@ -550,8 +552,8 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
             but a handful of the nearly 16,000 county pasture types; where they differ, FSA's list is the official one.</li>
           <li id="foot-rate">Payment estimates use FSA's monthly feed cost for an adult beef cow.</li>
           <li id="foot-cows">Beef cows in drought weight each county's Census of Agriculture beef cows by the share of
-            its land in drought, the way USDA counts livestock in drought. NASS hides some county counts for privacy;
-            this page estimates them from the state total.</li>
+            its land in drought, the way USDA counts livestock in drought. USDA's weekly Ag in Drought report gives the
+            share of all cattle in drought; this page counts beef cows only, so the two differ.</li>
           <li>County outlines: U.S. Census Bureau, 2024. The maps cover the 48 contiguous states and D.C.</li>
         </ul>
       </div>
@@ -627,6 +629,9 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
   const money = v => "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const money0 = v => "$" + Math.round(v).toLocaleString("en-US");
   const count = v => Math.round(v).toLocaleString("en-US");
+  // a county's beef cows: NASS's count, or about the estimate (2 significant figures) where NASS withheld it
+  const sig2 = v => { const p = 10 ** Math.max(0, Math.floor(Math.log10(Math.max(v, 1))) - 1); return Math.round(v / p) * p; };
+  const cowCount = (cows, est) => est ? `about ${count(sig2(cows))}` : count(cows);
   const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
   const pctOf = r => `${(r * 100).toFixed(1).replace(/\.0$/, "")}%`;
   // a fiscal year OMB hasn't published a sequestration rate for carries an earlier year's forward
@@ -665,13 +670,13 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
   const tip = $("#tip");
   function showTip(ev, f) {
     const c = US.counties[f]; if (!c) return;
-    const [k, d0, d1, d2, d3, d4, lfp, cows] = c;
+    const [k, d0, d1, d2, d3, d4, lfp, cows, est] = c;
     const rows = [[4, d4], [3, d3], [2, d2], [1, d1], [0, d0]].filter(r => r[1] > 0)
       .map(([j, v]) => `<div class="row"><span>${swatch(j)}${cat(j).code}</span><span>${pct(v)}</span></div>`).join("");
     tip.innerHTML = `<b>${esc(cname(f))}, ${stOf(f)}</b>${k < 0 ? "No drought" : `Worst: ${cat(k).code} ${cat(k).name}`}
       ${rows ? `<div style="margin-top:6px">${rows}</div>` : ""}
       ${lfp ? `<div style="margin-top:6px">LFP ${lfpFirst()}: ${plural(lfp, "payment month")} triggered</div>` : ""}
-      ${cows != null && US.beef ? `<div style="margin-top:${lfp ? 0 : 6}px">Beef cows: ${count(cows)} (${US.beef.census} Census)</div>` : ""}`;
+      ${cows != null && US.beef ? `<div style="margin-top:${lfp ? 0 : 6}px">Beef cows: ${cowCount(cows, est)} (${est ? "estimated" : `${US.beef.census} Census`})</div>` : ""}`;
     tip.hidden = false;
     const x = Math.min(ev.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
     const y = ev.clientY + 16 + tip.offsetHeight > window.innerHeight ? ev.clientY - tip.offsetHeight - 12 : ev.clientY + 16;
@@ -842,11 +847,11 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
       return;
     }
     const c = US.counties[S.fips];
-    const [k, d0, d1, d2, d3, d4, , cows] = c;
+    const [k, d0, d1, d2, d3, d4, , cows, est] = c;
     const parts = [[0, d0], [1, d1], [2, d2], [3, d3], [4, d4]];
     const best = lfpBest(S.fips);
     const cowTxt = !US.beef ? "" : cows == null ? `<p class="small" style="margin:0">Beef cows: no ${US.beef.census} Census count for this county.</p>`
-      : `<p class="small" style="margin:0">Beef cows: <b>${count(cows)}</b> (${US.beef.census} Census),
+      : `<p class="small" style="margin:0">Beef cows: <b>${cowCount(cows, est)}</b> (${est ? `estimated; NASS withheld the ${US.beef.census} count` : `${US.beef.census} Census`}),
       ${pct(d1 + d2 + d3 + d4)} of the county's land in drought.</p>`;
     const lfpTxt = US.meta.no_lfp[S.st] ? `<p class="small">${esc(US.meta.no_lfp[S.st])}</p>`
       : best == null ? `<p class="small">FSA lists no grazing periods for this county. Contact the nearest FSA office.${neighborLinks(lfpOf(S.st, lfpFirst()))}</p>`
@@ -869,7 +874,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
   /* ---------- LFP tab ---------- */
   const LEVELS = [
     [1, "D2 for 4 weeks in a row", "Severe drought (D2) or worse on part of the county for 4 weeks in a row"],
-    [2, "D2 for 7 of 8 weeks", "D2 or worse in 7 of 8 weeks in a row (on FSA's list, the first 4 in a row)"],
+    [2, "D2 for 7 of 8 weeks", "D2 or worse in 7 of 8 weeks, starting with 4 in a row (as FSA's list counts it)"],
     [3, "D3 at any time", "Extreme drought (D3) or worse on part of the county in any week"],
     [4, "D3 for 4 weeks, or D4", "D3 or worse in 4 weeks (not necessarily in a row), or exceptional drought (D4) in any week"],
     [5, "D4 for 4 weeks", "D4 on part of the county in 4 weeks"]
@@ -1068,7 +1073,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
         ${rate ? `<div><p class="k">Estimated LFP payment, ${esc(sel.t.toLowerCase())}</p>
           <p class="v">${money(net(sel.pm * rate.month))} <span style="font-size:18px">per cow</span></p>
           <p class="s">${months(sel.pm)} × ${money(rate.month)} a month${rate.official ? "" : ` (our estimate until FSA posts the ${yr} rate)`}${cut ? `, <span class="cut">less ${cutWord} ${pctOf(cut)} sequestration cut</span>` : ""}.
-          Full rate shown; some producers get less. <a href="#about" data-goto="about-pay">How this is calculated</a></p>
+          Full rate shown; producers who sold cattle because of drought in ${yr - 2} or ${yr - 1} get 80%. <a href="#about" data-goto="about-pay">How this is calculated</a></p>
           <p class="s herd"><label>For <input id="cow-n" type="number" min="0" step="1" value="${S.cows}" style="width:80px;padding:3px 6px;border:1px solid var(--rule);border-radius:6px;background:var(--surface)">
           cows:</label> <b id="cowtot">${money0(net(sel.pm * rate.month * S.cows))}</b></p></div>` : ""}
         <div><p class="k">Payment months triggered, ${esc(sel.t.toLowerCase())}</p>
@@ -1428,7 +1433,9 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
       (fr.official ? "." : `: FSA hasn't posted the ${fy} rate, so this is the statutory formula with USDA NASS corn prices, which matches FSA's 2022-2025 rates within a few cents.`) +
       ` LFP pays 60% of it, ${money(fr.month)} per cow a month` +
       (fr.sequester ? `, less ${seqEst(fr) ? "an estimated" : "the"} ${pctOf(fr.sequester)} sequestration cut (${money(fr.month * (1 - fr.sequester))}).` : ".");
-    if (US.beef) $("#foot-cows").textContent += ` Counts from the ${US.beef.census} Census of Agriculture (USDA NASS).`;
+    if (US.beef) $("#foot-cows").textContent += ` Counts from the ${US.beef.census} Census of Agriculture (USDA NASS).` +
+      ` NASS withholds some county counts to avoid disclosing individual farms; for those counties (${Math.round(US.beef.withheld)}% of` +
+      ` U.S. beef cows), this page splits the state's withheld total by each county's number of beef cow farms.`;
     if (fr && !fr.official) {
       const li = $("#about-rate"); li.hidden = false;
       li.innerHTML = `FSA hasn't posted its ${fy} monthly feed cost yet; it usually does early the next year. Until then, the
