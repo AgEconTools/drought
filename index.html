@@ -11,7 +11,7 @@
 <meta property="og:title" content="Beef Cattle Drought Tracker">
 <meta property="og:description" content="This week's U.S. Drought Monitor by county, the share of beef cows in drought, and where each county stands on Livestock Forage Disaster Program (LFP) payments.">
 <meta property="og:url" content="https://agecontools.github.io/drought/">
-<meta name="version" content="26">
+<meta name="version" content="27">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -648,8 +648,11 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     <tbody>${rows.map(([r, ...cells]) => `<tr><th scope="row">${esc(r)}</th>${cells.map(v => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   const months = n => n === 1 ? "1 month" : `${n} months`;
   const deadline = year => `March 1, ${year + 1}`;     // LFP: apply by March 1 after the program year
-  const listing = xs => xs.length > 3 ? `${xs.slice(0, 2).join(", ")} and ${xs.length - 2} other types`
-    : xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}` : xs[0];
+  const listing = list => {                             // a type two FSA offices both list is named once
+    const xs = [...new Set(list)];
+    return xs.length > 3 ? `${xs.slice(0, 2).join(", ")} and ${xs.length - 2} other types`
+      : xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}` : xs[0];
+  };
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const swatch = k => `<span class="sw" style="background:${cat(k).color}"></span>`;
   const chip = k => `<span class="chip">${swatch(k)}${k < 0 ? "No drought" : `${cat(k).code} ${cat(k).name}`}</span>`;
