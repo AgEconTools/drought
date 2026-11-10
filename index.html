@@ -20,7 +20,9 @@
 <link rel="icon" href="favicon.ico" sizes="32x32">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="version" content="31">
+<!-- Visit counts: GoatCounter, no cookies and no personal data (Josh, 11/2026). It skips localhost. -->
+<script data-goatcounter="https://agecontools.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+<meta name="version" content="34">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -339,6 +341,22 @@ footer .legal { display: grid; gap: 8px; }
 }
 :root[data-theme="dark"] .legal .logo-light { display: none; }
 :root[data-theme="dark"] .legal .logo-dark { display: block; }
+/* Links between the MSU Extension tools (11/2026; ADDRESS_STANDARD.md): "More cattle tools" and
+   "Share this view" in the masthead, and the other tools at the top of the footer. Each project keeps
+   its own copy; change all five together. */
+.asof.tools-line { margin-top: 6px; font-size: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; }
+.share-btn { all: unset; cursor: pointer; text-decoration: underline; color: inherit; font: inherit; }
+.share-btn:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 2px; }
+.tools-strip { margin: 0 0 24px; scroll-margin-top: 80px; }   /* clears the sticky tab bar */
+.tools-strip h2 { margin: 0 0 10px; }
+.tools-strip ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.tools-strip a { display: flex; gap: 12px; align-items: flex-start; height: 100%; box-sizing: border-box; padding: 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); color: var(--ink); text-decoration: none; }
+.tools-strip a:hover { border-color: var(--accent); }
+.tools-strip a:hover b { text-decoration: underline; }
+.tools-strip svg { width: 36px; height: 36px; flex: none; border-radius: 7px; }
+.tools-strip b { display: block; font-size: 15px; line-height: 1.3; }
+.tools-strip a > span > span { display: block; font-size: 13px; line-height: 1.4; color: var(--muted); margin-top: 3px; }
+@media print { .tools-line, .tools-strip { display: none; } }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14.5px; color: var(--ink-2); max-width: 80ch; }
 .disc { border: 1px solid var(--rule); border-left: 4px solid var(--ink-2); background: var(--bg); border-radius: 8px;
@@ -372,6 +390,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
       <p class="asof" id="asof">Loading this week's map…</p>
       <p class="asof stale" id="stale" hidden></p>
       <p class="asof edu">For educational use only. <a href="#disclaimer">Read the disclaimer</a>.</p>
+      <p class="asof tools-line"><a href="#more-tools">More cattle tools</a><button type="button" class="share-btn" id="share-view">Share this view</button><span class="sr-only" role="status" id="share-msg"></span></p>
     </div>
     <div class="pickers">
       <div class="picker">
@@ -430,6 +449,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
         <div class="card info" id="info"></div>
       </div>
     </div>
+    <p class="note" id="map-prices" hidden></p>
     <p class="note">The official map at <a href="https://droughtmonitor.unl.edu/" target="_blank" rel="noopener">droughtmonitor.unl.edu</a>
       shows where the drought is inside each county.</p>
     <p class="note">If the map doesn't match conditions on your place, you can report what you see through the National
@@ -452,6 +472,8 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     <p class="note">Rules, forms, the deadline and sources are under <a href="#about" data-tab="about">About LFP</a>.
       USDA's Farm Service Agency (FSA) decides eligibility and payments; ask your county FSA office about your own
       operation.</p>
+    <p class="note">Short on grass and buying hay? See what feed costs do to a cow-calf budget in
+      <a href="../cattlebudgets/#cowcalf">Beef Cattle Budgets</a>.</p>
   </section>
 
   <section class="panel" id="cows" role="tabpanel" aria-labelledby="t-cows" hidden>
@@ -578,6 +600,14 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
 
 <footer id="foot">
   <div class="wrap">
+    <nav class="tools-strip" id="more-tools" aria-labelledby="tools-h">
+      <h2 id="tools-h">More cattle tools</h2>
+      <ul>
+      <li><a href="../cattleprices/" data-tool="cattleprices"><svg aria-hidden="true" focusable="false" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#5d1725"/><path fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M6.5 22.5 L12 16.5 L16.5 19.5 L24.5 10.5"/><circle cx="24.5" cy="10.5" r="2.3" fill="#fff"/><path fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" d="M6.5 26.5 H25.5"/></svg><span><b>Cattle Auction Prices</b><span>Feeder cattle, cull cow and replacement prices at auction this week, by state, class and weight</span></span></a></li>
+      <li><a href="../cattlebudgets/" data-tool="cattlebudgets"><svg aria-hidden="true" focusable="false" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#5d1725"/><rect fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" x="8.5" y="5.5" width="15" height="21" rx="2"/><path fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M12.5 11.5 H19.5 M12.5 16 H19.5 M12.5 20.5 H16.5"/></svg><span><b>Beef Cattle Budgets</b><span>Cow-calf, stocker, retained ownership and freezer beef budgets at current prices</span></span></a></li>
+      <li><a href="../beeftrade/" data-tool="beeftrade"><svg aria-hidden="true" focusable="false" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#5d1725"/><path fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M7 11.5 H24 M20 7.5 L24 11.5 L20 15.5"/><path fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M25 20.5 H8 M12 16.5 L8 20.5 L12 24.5"/></svg><span><b>U.S. Beef Trade</b><span>Beef imports and exports by country, tariff-rate quotas and cattle trade</span></span></a></li>
+      </ul>
+    </nav>
     <section class="disc" id="disclaimer" aria-labelledby="disc-h">
       <h2 id="disc-h">Disclaimer</h2>
       <p>This page is for education only. It summarizes the U.S. Drought Monitor and applies the LFP drought rules to it
@@ -599,6 +629,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
         the extent protected by applicable law. Questions about equal opportunity programs or compliance should be directed
         to the <a href="https://www.civilrights.msstate.edu/">Office of Civil Rights Compliance</a>, 231 Famous Maroon Band
         Street, P.O. 6044, Mississippi State, MS 39762.</p>
+      <p class="note">Visits to this page are counted with GoatCounter, without cookies or any personal data.</p>
       <p class="note">Copyright <span id="foot-year"></span> by Mississippi State University. All rights reserved.
         <a href="https://www.msstate.edu">www.msstate.edu</a></p>
     </div>
@@ -1426,15 +1457,29 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     if (scroll) window.scrollTo({ top: $("main").getBoundingClientRect().top + window.scrollY - $(".tabs").offsetHeight,
                                   behavior: "smooth" });
   }
+  // The address (Data_Forecasts/ADDRESS_STANDARD.md): ?state=ms&county=28105#lfp. The page keeps it current
+  // so a copied or shared link opens the same view; never rename these names (old forms stay readable).
+  const query = () => { try { return new URLSearchParams(location.search); } catch (e) { return new URLSearchParams(""); } };
   function writeHash() {
-    const h = `#${S.tab}${S.fips ? "-" + S.fips : S.st ? "-" + S.st : ""}`;
-    try { if (location.hash !== h) history.replaceState(null, "", h); } catch (e) { /* sandboxed frame */ }
+    const q = query();
+    q.delete("state"); q.delete("county");
+    if (S.st) q.set("state", S.st.toLowerCase());
+    if (S.fips) q.set("county", S.fips);
+    const qs = q.toString(), url = `${location.pathname}${qs ? "?" + qs : ""}#${S.tab}`;
+    try { if (location.pathname + location.search + location.hash !== url) history.replaceState(null, "", url); } catch (e) { /* sandboxed frame */ }
+    // the picked state's auction prices, on the cattle prices tool (it says so if it doesn't cover the state)
+    const mp = $("#map-prices");
+    if (mp) { mp.hidden = !S.st; if (S.st) mp.innerHTML = `This week's cattle auction prices in ${esc(US.meta.states[S.st])}: ` +
+      `<a href="../cattleprices/?state=${S.st.toLowerCase()}#week">Cattle Auction Prices</a>.`; }
   }
-  function readHash() {
-    const m = location.hash.match(/^#(map|lfp|cows|about)(?:[-\/]([A-Z]{2}|\d{5}))?$/);
-    if (!m) return null;
-    const v = m[2] || "";
-    return { tab: m[1], st: /^\d/.test(v) ? stOf(v) : v, fips: /^\d/.test(v) ? v : "" };
+  function readHash() {      // also reads the older #lfp-MS and #map-28105 forms (11/2026 and before)
+    const m = location.hash.match(/^#(map|lfp|cows|about)(?:[-\/]([A-Za-z]{2}|\d{5}))?$/), q = query();
+    let st = (q.get("state") || "").trim().toUpperCase(), fips = (q.get("county") || "").trim();
+    if (m && m[2]) { if (/^\d/.test(m[2])) fips = fips || m[2]; else st = st || m[2].toUpperCase(); }
+    if (!/^\d{5}$/.test(fips)) fips = "";
+    if (fips) st = stOf(fips);                 // a county wins over a state
+    if (!m && !st) return null;
+    return { tab: m ? m[1] : "map", st, fips, isTab: !!m };
   }
 
   /* ---------- start ---------- */
@@ -1483,13 +1528,51 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     pick(US.meta.states[st] ? st : "", US.counties[fips] && stOf(fips) === st ? fips : "", false, true);
     drawTally();
     window.addEventListener("hashchange", () => {   // a shared link opened in the same tab
-      const h = readHash(); if (!h) return;
+      const h = readHash(); if (!h || !h.isTab) return;   // #disclaimer, #more-tools and other anchors aren't tabs
       setTab(h.tab);
       if (h.st !== S.st || h.fips !== S.fips) pick(US.meta.states[h.st] ? h.st : "", h.fips, false, true);
     });
   }).catch(err => {
     $("#asof").textContent = "The drought data didn't load. Try again in a minute.";
     console.error(err);
+  });
+})();
+
+// Links between the MSU Extension tools (11/2026; ADDRESS_STANDARD.md). "Share this view" opens the phone's
+// share sheet where there is one, otherwise copies the address, which always holds the view on screen.
+// Links to the other tools carry this page's state (?state=) to the tools that use one.
+(() => {
+  const btn = document.getElementById("share-view"), msg = document.getElementById("share-msg");
+  if (btn) {
+    const say = t => { msg.textContent = t; btn.textContent = t; clearTimeout(btn._t);
+      btn._t = setTimeout(() => { btn.textContent = "Share this view"; msg.textContent = ""; }, 2500); };
+    btn.addEventListener("click", async () => {
+      const url = location.href;
+      if (navigator.share && matchMedia("(pointer: coarse)").matches) {
+        try { await navigator.share({ title: document.title, url }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+      }
+      try { await navigator.clipboard.writeText(url); say("Link copied"); }
+      catch (e) { window.prompt("Copy this link:", url); }
+    });
+  }
+  const STATE_TOOLS = ["cattleprices", "drought"];
+  const carry = a => {
+    let st = ""; try { st = (new URLSearchParams(location.search).get("state") || "").toLowerCase(); } catch (e) { /* no query */ }
+    const base = `../${a.dataset.tool}/`;
+    a.href = STATE_TOOLS.includes(a.dataset.tool) && /^[a-z]{2}$/.test(st) ? `${base}?state=${st}` : base;
+  };
+  document.querySelectorAll("a[data-tool]").forEach(a => ["pointerdown", "focus", "mouseenter", "click"].forEach(ev => a.addEventListener(ev, () => carry(a))));
+})();
+
+// Visit counts (GoatCounter): which tabs people open and how often they share, as plain events with no
+// identity attached. Named "<tool>: <tab label>"; nothing is sent when the counter didn't load.
+(() => {
+  const tool = location.pathname.split("/").filter(Boolean).pop() || "page";
+  const count = path => { try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path, title: path, event: true }); } catch (e) { /* counting never breaks the page */ } };
+  document.addEventListener("click", e => {
+    const t = e.target.closest('[role="tab"]');
+    if (t) count(`${tool}: ${(t.querySelector(".l") || t).textContent.trim()}`);   // the long label where a tab has two
+    if (e.target.closest("#share-view")) count(`${tool}: share`);
   });
 })();
 </script>
