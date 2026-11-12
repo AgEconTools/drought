@@ -22,7 +22,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!-- Visit counts: GoatCounter, no cookies and no personal data (Josh, 11/2026). It skips localhost. -->
 <script data-goatcounter="https://agecontools.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
-<meta name="version" content="35">
+<meta name="version" content="36">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -366,6 +366,7 @@ footer .legal { display: grid; gap: 8px; }
   .asof.edu a, .asof.tools-line a, .share-btn { display: inline-flex; align-items: center; min-height: 40px; }
   .asof.tools-line { margin-top: 0; }
   #cow-n { min-height: 40px; box-sizing: border-box; font-size: 16px; }
+  .tab { min-height: 40px; }
   .seg button { min-height: 40px; }
 }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -525,8 +526,9 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
       <div class="card">
         <h3 id="about-apply">What FSA requires of you</h3>
         <ul>
-          <li>An acreage report (form FSA-578) for the grazing land, filed with your county FSA office by the county's
-            acreage reporting date, usually July 15 for pasture. FSA requires it before it processes an LFP application;
+          <li>An acreage report (form FSA-578) for the grazing land, filed with your county FSA office by your state's
+            acreage reporting date, which is July 15 in Mississippi and differs in some states. Ask your county FSA office
+            for yours. FSA requires it before it processes an LFP application;
             a late report is accepted for a fee if FSA can still verify the acreage. There is no enrollment or premium.</li>
           <li>An application (form CCC-853) at your county FSA office. In FSA's words, "applications must be submitted by
             March 1 following the end of the calendar year in which the grazing loss occurred"
@@ -579,8 +581,9 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
             is 15.7 pounds of corn a day for 30 days at the year's corn price; other livestock are converted to that
             with FSA's animal-unit factors. If the feed cost based on the land's normal carrying capacity is lower, that
             is used instead.</li>
-          <li>If you sold or otherwise disposed of livestock because of drought in either of the two previous years,
-            you get 80% of the rate.</li>
+          <li id="about-80">Cattle sold because of drought can still count, and FSA uses 80% of the monthly rate for
+            producers who sold because of drought in either of the two years before the program year. Ask your county FSA
+            office how that applies to your herd.</li>
           <li id="about-rate" hidden></li>
           <li>Payment = monthly rate × payment months × eligible animals. Payment months are a multiplier, not a
             schedule of checks: FSA pays after it processes the application, and pays the difference if the county
@@ -717,6 +720,9 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
   // a level reached on a map whose week overlaps the grazing period's start is shown as reached on the start
   const later = (a, b) => a > b ? a : b;      // ISO dates
   const LIMIT = 125000;                       // LFP's payment limit per person or legal entity a program year
+  // 7 CFR 1416.207(i): 80% of the rate after drought sales in 1 or both of the 2 years before the program year
+  const sold80 = yr => `Cattle sold because of drought can still count, and FSA uses 80% of the monthly rate for producers
+    who sold because of drought in ${yr - 2} or ${yr - 1}. Ask your county FSA office how that applies to your herd.`;
   const deadline = year => `March 1, ${year + 1}`;     // LFP: apply by March 1 after the program year
   const listing = list => {                             // a type two FSA offices both list is named once
     const xs = [...new Set(list)];
@@ -1148,14 +1154,15 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     show(`
       <div class="card answer">
         ${rate ? `<div><p class="k">Estimated LFP payment, up to, ${esc(sel.t.toLowerCase())}</p>
-          <p class="v"><span style="font-size:18px">up to</span> ${money(net(sel.u * rate.month))} <span style="font-size:18px">per cow</span></p>
+          ${sel.u ? `<p class="v"><span style="font-size:18px">up to</span> ${money(net(sel.u * rate.month))} <span style="font-size:18px">per cow</span></p>
           <p class="s">${months(sel.u)} × ${money(rate.month)} a month${rate.official ? "" : ` (our estimate until FSA posts the ${yr} rate)`}${cut ? `, <span class="cut">less ${cutWord} ${pctOf(cut)} sequestration cut</span>` : ""}.
-          Full rate shown; if you sold cattle because of drought in ${yr - 2} or ${yr - 1}, you get 80%. FSA pays the lesser of this
+          Full rate shown. ${sold80(yr)} FSA pays the lesser of this
           amount or the amount based on your grazing land's normal carrying capacity, so fewer acres can mean a smaller payment.
           <a href="#about" data-goto="about-pay">How this is calculated</a></p>
           <p class="s herd"><label>For <input id="cow-n" type="number" min="0" step="1" value="${S.cows}">
           cows:</label> <b id="cowtot">${money0(net(sel.u * rate.month * S.cows))}</b></p>
-          <p class="s flag" id="cowcap"${net(sel.u * rate.month * S.cows) > LIMIT ? "" : " hidden"}>Over the $125,000 limit per person or legal entity for a program year.</p>
+          <p class="s flag" id="cowcap"${net(sel.u * rate.month * S.cows) > LIMIT ? "" : " hidden"}>Over the $125,000 limit per person or legal entity for a program year.</p>`
+          : `<p class="v" style="font-size:22px">No payment months triggered</p>`}
           <p class="s" style="margin-top:6px">${sel.u ? `Bulls are paid the same as cows. Weaned cattle 500 pounds or more are
             paid 75% of this (${money(net(sel.u * rate.nonadult[0]))} per head) and under 500 pounds 50%
             (${money(net(sel.u * rate.nonadult[1]))}).` : `Bulls are paid the same as cows. Weaned cattle 500 pounds or more
@@ -1545,6 +1552,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
         page's numbers come from</a>.`;
     }
     $("#about-deadline").textContent = `${deadline(fy)} for ${fy} losses`;
+    $("#about-80").textContent = sold80(fy);
     const ck = m.lfp.by[fy].check;      // this build's check against FSA's list (tools/export_dashboard.py)
     if (ck) $("#about-check").textContent = ck.applied
       ? ` Checked against FSA's list of ${fmt(ck.list)}, this page's own count agreed on ${count(ck.agree)} of ${count(ck.agree + ck.differ)}` +
