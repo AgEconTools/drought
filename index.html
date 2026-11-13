@@ -22,7 +22,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!-- Visit counts: GoatCounter, no cookies and no personal data (Josh, 11/2026). It skips localhost. -->
 <script data-goatcounter="https://agecontools.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
-<meta name="version" content="36">
+<meta name="version" content="37">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -601,9 +601,13 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
           <li>Drought: U.S. Drought Monitor county statistics (National Drought Mitigation Center at the University of
             Nebraska-Lincoln, USDA and NOAA), the share of each county's area in each category. A county's color is the
             worst category on any part of it, however small.</li>
-          <li>LFP: the drought triggers above, applied week by week. Grazing periods come from FSA's weekly list of
-            eligible counties and, for counties not on it, FSA's grazing period records (obtained under FOIA and archived
-            by the Montana Climate Office).<span id="about-check"></span></li>
+          <li>LFP: the drought triggers above, applied week by week. "FSA's list" on this page is FSA's weekly data table,
+            <a id="about-table" href="https://www.fsa.usda.gov/resources/programs/livestock-forage-disaster-program-lfp/maps"
+            target="_blank" rel="noopener">Counties &amp; Pasture Types Eligible for LFP</a><span id="about-file"></span>, an Excel
+            file on FSA's Weekly LFP Program Eligibility Maps and Table page. FSA's PDF maps on that page are updated on their own
+            schedule and, for 2026, don't yet use the new drought thresholds; the table does. Grazing periods come from that
+            table and, for counties not on it, FSA's grazing period records (obtained under FOIA and archived by the Montana
+            Climate Office).<span id="about-check"></span></li>
           <li id="foot-rate">Payment estimates use FSA's monthly feed cost for an adult beef cow.</li>
           <li id="foot-cows">Beef cows in drought weight each county's Census of Agriculture beef cows by the share of
             its land in drought, the way USDA counts livestock in drought. USDA's weekly Ag in Drought report gives the
@@ -689,6 +693,15 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
   const fmt = (iso, year = true) => { const d = parse(iso);
     return `${MON[d.getMonth()]} ${d.getDate()}` + (year ? `, ${d.getFullYear()}` : ""); };
   const pct = v => v == null ? "–" : (v > 0 && v < 0.5 ? "<1%" : `${Math.round(v)}%`);
+  // a county's shares [D0..D4] plus none as whole percents that total 100 (largest remainder):
+  // labels in that order, a share above zero that gets no whole point reading "<1%"
+  function shareLabels(ds) {
+    const vals = [...ds.map(v => v || 0)]; vals.push(Math.max(0, 100 - vals.reduce((a, v) => a + v, 0)));
+    const tot = vals.reduce((a, v) => a + v, 0) || 1, exact = vals.map(v => v * 100 / tot);
+    const n = exact.map(Math.floor); let left = 100 - n.reduce((a, v) => a + v, 0);
+    exact.map((v, i) => [v - n[i], i]).sort((a, b) => b[0] - a[0] || a[1] - b[1]).forEach(([, i]) => { if (left > 0) { n[i]++; left--; } });
+    return n.map((k, i) => vals[i] > 0 && k === 0 ? "<1%" : `${k}%`);
+  }
   const money = v => "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const money0 = v => "$" + Math.round(v).toLocaleString("en-US");
   const count = v => Math.round(v).toLocaleString("en-US");
@@ -743,8 +756,9 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
   function showTip(ev, f) {
     const c = US.counties[f]; if (!c) return;
     const [k, d0, d1, d2, d3, d4, lfp, cows, est] = c;
+    const lab = shareLabels([d0, d1, d2, d3, d4]);
     const rows = [[4, d4], [3, d3], [2, d2], [1, d1], [0, d0]].filter(r => r[1] > 0)
-      .map(([j, v]) => `<div class="row"><span>${swatch(j)}${cat(j).code}</span><span>${pct(v)}</span></div>`).join("");
+      .map(([j, v]) => `<div class="row"><span>${swatch(j)}${cat(j).code}</span><span>${lab[j]}</span></div>`).join("");
     tip.innerHTML = `<b>${esc(cname(f))}, ${stOf(f)}</b>${k < 0 ? "No drought" : `Worst: ${cat(k).code} ${cat(k).name}`}
       ${rows ? `<div style="margin-top:6px">${rows}</div>` : ""}
       ${lfp ? `<div style="margin-top:6px">LFP ${lfpFirst()}: ${plural(lfp, "payment month")} triggered</div>` : ""}
@@ -921,6 +935,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     const c = US.counties[S.fips];
     const [k, d0, d1, d2, d3, d4, , cows, est] = c;
     const parts = [[0, d0], [1, d1], [2, d2], [3, d3], [4, d4]];
+    const lab = shareLabels([d0, d1, d2, d3, d4]);
     const best = lfpBest(S.fips);
     const cowTxt = !US.beef ? "" : cows == null ? `<p class="small" style="margin:0">Beef cows: no ${US.beef.census} Census count for this county.</p>`
       : `<p class="small" style="margin:0">Beef cows: <b>${cowCount(cows, est)}</b> (${est ? `estimated; NASS withheld the ${US.beef.census} count` : `${US.beef.census} Census`}),
@@ -932,10 +947,10 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     box.innerHTML = `<h3>${esc(cname(S.fips))}</h3>
       <div>${chip(k)}</div>
       <div class="bar" role="img" aria-label="Share of the county in each category">${parts.map(([j, v]) =>
-        v > 0 ? `<span style="width:${v}%;background:${cat(j).color}" title="${cat(j).code} ${pct(v)}"></span>` : "").join("")}</div>
+        v > 0 ? `<span style="width:${v}%;background:${cat(j).color}" title="${cat(j).code} ${lab[j]}"></span>` : "").join("")}</div>
       <table class="shares"><tbody>${[...parts].reverse().map(([j, v]) =>
-        `<tr><td>${swatch(j)}${cat(j).code} ${cat(j).name}</td><td>${pct(v)}</td></tr>`).join("")}
-        <tr><td>${swatch(-1)}No drought or dryness</td><td>${pct(Math.max(0, 100 - d0 - d1 - d2 - d3 - d4))}</td></tr></tbody></table>
+        `<tr><td>${swatch(j)}${cat(j).code} ${cat(j).name}</td><td>${lab[j]}</td></tr>`).join("")}
+        <tr><td>${swatch(-1)}No drought or dryness</td><td>${lab[5]}</td></tr></tbody></table>
       <p class="small" style="margin:0">Share of the county's area, ${fmt(US.meta.map_date)}.</p>
       ${cowTxt}${lfpTxt}
       ${best != null && !US.meta.no_lfp[S.st] ? `<button class="go" type="button" id="to-lfp">See where it stands on LFP payments</button>` : ""}`;
@@ -1156,9 +1171,8 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
         ${rate ? `<div><p class="k">Estimated LFP payment, up to, ${esc(sel.t.toLowerCase())}</p>
           ${sel.u ? `<p class="v"><span style="font-size:18px">up to</span> ${money(net(sel.u * rate.month))} <span style="font-size:18px">per cow</span></p>
           <p class="s">${months(sel.u)} × ${money(rate.month)} a month${rate.official ? "" : ` (our estimate until FSA posts the ${yr} rate)`}${cut ? `, <span class="cut">less ${cutWord} ${pctOf(cut)} sequestration cut</span>` : ""}.
-          Full rate shown. ${sold80(yr)} FSA pays the lesser of this
-          amount or the amount based on your grazing land's normal carrying capacity, so fewer acres can mean a smaller payment.
-          <a href="#about" data-goto="about-pay">How this is calculated</a></p>
+          FSA pays less if your grazing land's normal carrying capacity supports fewer animals. Cattle sold because of
+          drought are figured differently. <a href="#about" data-goto="about-pay">How this is calculated</a></p>
           <p class="s herd"><label>For <input id="cow-n" type="number" min="0" step="1" value="${S.cows}">
           cows:</label> <b id="cowtot">${money0(net(sel.u * rate.month * S.cows))}</b></p>
           <p class="s flag" id="cowcap"${net(sel.u * rate.month * S.cows) > LIMIT ? "" : " hidden"}>Over the $125,000 limit per person or legal entity for a program year.</p>`
@@ -1443,8 +1457,10 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     const counts = [0, 0, 0, 0, 0, 0];
     for (const f in US.counties) if (!S.st || stOf(f) === S.st) counts[US.counties[f][0] + 1]++;
     const tot = counts.reduce((a, v) => a + v, 0);
-    stats.push(`<div class="stat"><b>${pct((counts[3] + counts[4] + counts[5]) / tot * 100)}</b><span>${S.st ? esc(m.states[S.st]) : "U.S."} counties with some D2 or worse</span></div>`);
-    $("#tally").innerHTML = `<p class="lead">${S.fips ? `${esc(cname(S.fips))}, ${esc(m.states[S.st])}` : S.st ? esc(m.states[S.st]) : "United States"}, ${fmt(m.map_date)}</p>${stats.join("")}`;
+    // D.C. is one county-equivalent: no share-of-counties tile, and its name once
+    if (S.st !== "DC") stats.push(`<div class="stat"><b>${pct((counts[3] + counts[4] + counts[5]) / tot * 100)}</b><span>${S.st ? esc(m.states[S.st]) : "U.S."} counties with some D2 or worse</span></div>`);
+    const place = S.fips && cname(S.fips) !== m.states[S.st] ? `${esc(cname(S.fips))}, ${esc(m.states[S.st])}` : S.st ? esc(m.states[S.st]) : "United States";
+    $("#tally").innerHTML = `<p class="lead">${place}, ${fmt(m.map_date)}</p>${stats.join("")}`;
   }
   function fillStates() {
     const sel = $("#state");
@@ -1482,7 +1498,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     await loadState(S.st);
     fillCounties(); markUSState();
     $("#statesec").hidden = false;
-    $("#st-h").textContent = `${US.meta.states[S.st]} counties`;
+    $("#st-h").textContent = S.st === "DC" ? US.meta.states.DC : `${US.meta.states[S.st]} counties`;
     $("#st-sub").textContent = `Worst drought category on each county, ${fmt(US.meta.map_date)}.`;
     if (newState) drawState();
     markCounty();
@@ -1554,6 +1570,8 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     $("#about-deadline").textContent = `${deadline(fy)} for ${fy} losses`;
     $("#about-80").textContent = sold80(fy);
     const ck = m.lfp.by[fy].check;      // this build's check against FSA's list (tools/export_dashboard.py)
+    if (m.links.table) { $("#about-table").href = m.links.table; $("#about-table").textContent = `Counties & Pasture Types Eligible for ${fy} LFP`; }
+    if (ck) $("#about-file").textContent = ` (the list of ${fmt(ck.list)} is the file LFPEligibleCounties${ck.list.replace(/-/g, "")}.xlsx)`;
     if (ck) $("#about-check").textContent = ck.applied
       ? ` Checked against FSA's list of ${fmt(ck.list)}, this page's own count agreed on ${count(ck.agree)} of ${count(ck.agree + ck.differ)}` +
         ` county pasture types. Where they differ, this page shows FSA's number.` +
