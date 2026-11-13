@@ -22,7 +22,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!-- Visit counts: GoatCounter, no cookies and no personal data (Josh, 11/2026). It skips localhost. -->
 <script data-goatcounter="https://agecontools.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
-<meta name="version" content="38">
+<meta name="version" content="39">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -695,12 +695,23 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
   const pct = v => v == null ? "–" : (v > 0 && v < 0.5 ? "<1%" : `${Math.round(v)}%`);
   // a county's shares [D0..D4] plus none as whole percents that total 100 (largest remainder):
   // labels in that order, a share above zero that gets no whole point reading "<1%"
-  function shareLabels(ds) {
+  function shareInts(ds) {
     const vals = [...ds.map(v => v || 0)]; vals.push(Math.max(0, 100 - vals.reduce((a, v) => a + v, 0)));
     const tot = vals.reduce((a, v) => a + v, 0) || 1, exact = vals.map(v => v * 100 / tot);
     const n = exact.map(Math.floor); let left = 100 - n.reduce((a, v) => a + v, 0);
     exact.map((v, i) => [v - n[i], i]).sort((a, b) => b[0] - a[0] || a[1] - b[1]).forEach(([, i]) => { if (left > 0) { n[i]++; left--; } });
+    return { n, vals };
+  }
+  function shareLabels(ds) {
+    const { n, vals } = shareInts(ds);
     return n.map((k, i) => vals[i] > 0 && k === 0 ? "<1%" : `${k}%`);
+  }
+  // the share in category `from` or worse (D1 = 1 ... D4 = 4), as the sum of the displayed shares
+  // above, so the two never disagree; "<1%" when it's above zero but gets no whole point
+  function worsePct(ds, from) {
+    const { n, vals } = shareInts(ds);
+    const k = n.slice(from, 5).reduce((a, v) => a + v, 0), any = vals.slice(from, 5).some(v => v > 0);
+    return k === 0 && any ? "<1%" : `${k}%`;
   }
   const money = v => "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const money0 = v => "$" + Math.round(v).toLocaleString("en-US");
@@ -939,7 +950,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     const best = lfpBest(S.fips);
     const cowTxt = !US.beef ? "" : cows == null ? `<p class="small" style="margin:0">Beef cows: no ${US.beef.census} Census count for this county.</p>`
       : `<p class="small" style="margin:0">Beef cows: <b>${cowCount(cows, est)}</b> (${est ? `estimated; NASS withheld the ${US.beef.census} count` : `${US.beef.census} Census`}),
-      ${pct(d1 + d2 + d3 + d4)} of the county's land in drought.</p>`;
+      ${worsePct([d0, d1, d2, d3, d4], 1)} of the county's land in drought.</p>`;
     const lfpTxt = US.meta.no_lfp[S.st] ? `<p class="small">${esc(US.meta.no_lfp[S.st])}</p>`
       : best == null ? `<p class="small">FSA lists no grazing periods for this county. Contact the nearest FSA office.${neighborLinks(lfpOf(S.st, lfpFirst()))}</p>`
       : `<p class="lfpline">LFP ${lfpFirst()}: <b>${plural(best.u, "payment month")}</b> triggered so far${
@@ -1379,7 +1390,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     if (BEEF === null) { box.innerHTML = `<p class="empty card">Loading the beef cow history…</p>`; return; }
     const stB = S.st && b.states[S.st];
     const c = S.fips && US.counties[S.fips]; const cows = c ? c[7] : null, est = c && c[8];   // null, not false, with no county; est: NASS withheld the count
-    const inD = c ? c[2] + c[3] + c[4] + c[5] : 0, inD2 = c ? c[3] + c[4] + c[5] : 0, inD3 = c ? c[4] + c[5] : 0;
+    const inD2 = c ? c[3] + c[4] + c[5] : 0, inD3 = c ? c[4] + c[5] : 0;
     // "32% in D2 or worse, 9% in D3 or worse, 1% in D4", dropping the levels at zero
     const worse = v => [[1, "D2 or worse"], [2, "D3 or worse"], [3, "D4"]].filter(([i]) => v[i] > 0)
       .map(([i, lab]) => `${pct(v[i])} in ${lab}`).join(", ");
@@ -1388,7 +1399,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     if (stB) tiles.push(`<div><p class="k">${esc(m.states[S.st])} beef cows in drought</p><p class="v">${pct(stB[0])}</p>
         <p class="s">${worse(stB) ? worse(stB) + ". " : ""}${count(stB[4])} beef cows in the ${b.census} Census.</p></div>`);
     if (cows != null) tiles.push(`<div><p class="k">${esc(cname(S.fips))} beef cows</p><p class="v">${cowCount(cows, est)}</p>
-        <p class="s">${est ? `Estimated; NASS withheld the ${b.census} count.` : `${b.census} Census.`} ${pct(inD)} of the county's land is in drought${inD2 > 0 ? `, ${pct(inD2)} in D2 or worse` : ""}${inD3 > 0 ? `, ${pct(inD3)} in D3 or worse` : ""}.</p></div>`);
+        <p class="s">${est ? `Estimated; NASS withheld the ${b.census} count.` : `${b.census} Census.`} ${worsePct(c.slice(1, 6), 1)} of the county's land is in drought${inD2 > 0 ? `, ${worsePct(c.slice(1, 6), 2)} in D2 or worse` : ""}${inD3 > 0 ? `, ${worsePct(c.slice(1, 6), 3)} in D3 or worse` : ""}.</p></div>`);
     const from = CW.years && BEEF ? Math.max(0, BEEF.weeks.length - Math.round(CW.years * 52.18)) : 0;
     // state table, sortable by any column
     const keyOf = { name: ([k]) => m.states[k], cows: ([, v]) => v[4], d1: ([, v]) => v[0], d2: ([, v]) => v[1] };
