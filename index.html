@@ -22,7 +22,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!-- Visit counts: GoatCounter, no cookies and no personal data (Josh, 11/2026). It skips localhost. -->
 <script data-goatcounter="https://agecontools.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
-<meta name="version" content="42">
+<meta name="version" content="43">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -231,8 +231,14 @@ table.pt tr[aria-selected="true"] { background: var(--accent-soft); box-shadow: 
 .small { font-size: 13px; color: var(--muted); }
 table.pt .show-sm { display: none; }
 .answer .s.flag { margin-top: 6px; color: var(--warn-ink); font-weight: 600; }
-#cow-n { width: 80px; padding: 3px 6px; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface);
+#cow-n, .landin input { width: 80px; padding: 3px 6px; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface);
          color: var(--ink); font: inherit; }
+/* optional carrying-capacity cap on the LFP card (7 CFR 1416.207(m)) */
+.land { margin-top: 8px; font-size: 14px; color: var(--ink-2); }
+.land summary { cursor: pointer; color: var(--link); font-weight: 600; }
+.land .s { margin-top: 6px; }
+.landin { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 8px; }
+.landin label { display: inline-flex; align-items: center; gap: 6px; }
 .ladder { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .ladder li { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 12px; align-items: center;
              padding: 10px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); }
@@ -372,7 +378,8 @@ footer .legal { display: grid; gap: 8px; }
 @media (pointer: coarse) {
   .asof.edu a, .asof.tools-line a, .share-btn { display: inline-flex; align-items: center; min-height: 40px; }
   .asof.tools-line { margin-top: 0; }
-  #cow-n { min-height: 40px; box-sizing: border-box; font-size: 16px; }
+  #cow-n, .landin input { min-height: 40px; box-sizing: border-box; font-size: 16px; }
+  .land summary { padding: 10px 0; }   /* 40 px tall; stays a list item so the triangle shows */
   .tab { min-height: 40px; }
   .seg button { min-height: 40px; }
 }
@@ -593,7 +600,10 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
           <li>The monthly payment rate is 60% of the monthly feed cost for each animal. For an adult beef cow the feed cost
             is 15.7 pounds of corn a day for 30 days at the year's corn price; other livestock are converted to that
             with FSA's animal-unit factors. If the feed cost based on the land's normal carrying capacity is lower, that
-            is used instead.</li>
+            is used instead: FSA divides the acres of each pasture type by the county's normal carrying capacity for it
+            (acres per animal unit) and pays on no more animal units than that. FSA's state committees set those figures
+            and county FSA offices have them; FSA doesn't publish them nationally, so this page can't fill them in. You can
+            enter yours under "Your grazing land's carrying capacity" on the LFP tab.</li>
           <li id="about-80">Cattle sold because of drought can still count. Those sold because of drought in the program
             year count at the full rate, and FSA uses 80% of the monthly rate for producers who sold because of drought in
             either of the two years before it. Ask your county FSA office how that applies to your herd.</li>
@@ -695,6 +705,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     set(k, v) { try { localStorage.setItem("dlfp." + k, v); } catch (e) { /* private window */ } }
   };
   const S = { tab: "map", st: "", fips: "", pasture: store.get("pasture") || "", cows: +(store.get("cows") || 50),
+              land: (() => { try { return JSON.parse(store.get("land")) || {}; } catch (e) { return {}; } })(),   // "fips|office|type": [acres, acres per AU]
               picks: (() => { try { return JSON.parse(store.get("picks")) || {}; } catch (e) { return {}; } })() };
   let US = null, GEO = null;
   const SGEO = {}, LFP = {};      // LFP["2026/MS"]: one file per state and live program year
@@ -1217,6 +1228,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     const nextTxt = nextLv ? `${weeksAt(sel, nextLv[0], nx[nextLv[0]], true)} would make it ${months(nextLv[0])}`
       : sel.lv >= sel.cap ? "The most this grazing period allows" : sel.left ? "No higher level is possible before the grazing period ends" : "The grazing period has ended";
     const pre = !begun(sel);
+    const landKey = `${S.fips}|${sel.fsaCode}|${sel.t}`, land = S.land[landKey];
     const status = pre ? `Counting starts ${fmt(sel.s)}. Drought before then doesn't count toward ${yr} LFP.`
       : `${nextTxt}${sel.left ? `; ${plural(sel.left, "weekly map")} left, through ${fmt(sel.e)}` : ""}.`;
     show(`
@@ -1227,8 +1239,15 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
           FSA pays less if your grazing land's normal carrying capacity supports fewer animals. Cattle sold because of
           drought are figured differently. <a href="#about" data-goto="about-pay">How this is calculated</a></p>
           <p class="s herd"><label>For <input id="cow-n" type="number" min="0" step="1" value="${S.cows}">
-          cows:</label> up to <b id="cowtot">${money0(net(sel.u * rate.month * S.cows))}</b></p>
-          <p class="s flag" id="cowcap"${net(sel.u * rate.month * S.cows) > LIMIT ? "" : " hidden"}>Over the $125,000 limit per person or legal entity for a program year.</p>`
+          cows:</label> up to <b id="cowtot"></b><span id="cowcapped"></span></p>
+          <p class="s flag" id="cowcap" hidden>Over the $125,000 limit per person or legal entity for a program year.</p>
+          <details class="land"${land ? " open" : ""}><summary>Your grazing land's carrying capacity (optional)</summary>
+            <p class="s">FSA pays on no more animals than your acres of this pasture type can carry: the acres divided by the
+              county's normal carrying capacity in acres per animal unit. Your county FSA office has that figure for each pasture type.</p>
+            <div class="landin"><label>Acres of ${esc(sel.t.toLowerCase())} <input id="land-a" type="number" min="0" step="any" inputmode="decimal" value="${land ? land[0] : ""}"></label>
+              <label>Acres per animal unit <input id="land-r" type="number" min="0" step="any" inputmode="decimal" value="${land ? land[1] : ""}"></label></div>
+            <p class="s" id="land-out" aria-live="polite"></p>
+          </details>`
           : `<p class="v" style="font-size:22px">No payment months triggered</p>`}
           <p class="s" style="margin-top:6px">${sel.u ? `Bulls are paid the same as cows. Weaned cattle 500 pounds or more are
             paid 75% of this (${money(net(sel.u * rate.nonadult[0]))} per head) and under 500 pounds 50%
@@ -1271,11 +1290,25 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     });
     box.querySelectorAll("a[data-goto]").forEach(a => a.onclick = ev => { ev.preventDefault();
       setTab("about"); $("#" + a.dataset.goto).scrollIntoView({ block: "start" }); });
-    const cows = $("#cow-n");
-    if (cows) cows.oninput = () => { S.cows = Math.max(0, +cows.value || 0); store.set("cows", S.cows);
-      const tot = net(sel.u * rate.month * S.cows);
+    const cows = $("#cow-n"), la = $("#land-a"), lr = $("#land-r");
+    const herd = () => {
+      const a = +la.value, r = +lr.value, au = la.value !== "" && lr.value !== "" && a > 0 && r > 0 ? a / r : null;
+      // 7 CFR 1416.207(g) and (m): FSA pays on the smaller of the head count and the animal units the land carries
+      const paid = au == null ? S.cows : Math.min(S.cows, au), tot = net(sel.u * rate.month * paid);
+      const auTxt = au == null ? "" : au.toLocaleString("en-US", { maximumFractionDigits: 1 });
       $("#cowtot").textContent = cows.value === "" ? "–" : money0(tot);
-      $("#cowcap").hidden = cows.value === "" || tot <= LIMIT; };     // not capped: the limit is per person or entity, not per herd
+      $("#cowcapped").textContent = au != null && au < S.cows && cows.value !== "" ? ` (paid on ${auTxt} animal units)` : "";
+      $("#cowcap").hidden = cows.value === "" || tot <= LIMIT;      // not capped: the limit is per person or entity, not per herd
+      $("#land-out").textContent = au == null ? "" : `${a.toLocaleString("en-US")} acres at ${r.toLocaleString("en-US")} acres per animal unit carry ${auTxt} animal units${
+        cows.value === "" ? "." : au < S.cows ? `, fewer than ${S.cows.toLocaleString("en-US")} cows, so the estimate is for ${auTxt}.` : `, enough for ${S.cows.toLocaleString("en-US")} cows.`}`;
+    };
+    if (cows) {
+      cows.oninput = () => { S.cows = Math.max(0, +cows.value || 0); store.set("cows", S.cows); herd(); };
+      la.oninput = lr.oninput = () => {
+        if (la.value === "" && lr.value === "") delete S.land[landKey]; else S.land[landKey] = [la.value, lr.value];
+        store.set("land", JSON.stringify(S.land)); herd(); };
+      herd();
+    }
   }
 
   function neighborLinks(L) {
