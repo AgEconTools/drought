@@ -22,7 +22,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!-- Visit counts: GoatCounter, no cookies and no personal data (Josh, 11/2026). It skips localhost. -->
 <script data-goatcounter="https://agecontools.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
-<meta name="version" content="44">
+<meta name="version" content="45">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -210,7 +210,7 @@ h3 { font: 700 18px/1.3 var(--body); margin: 0; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .answer .v { color: var(--link); } }
 .answer .s { margin: 0; font-size: 14px; color: var(--ink-2); }
 .answer .s.herd { margin-top: 8px; }
-#about-pay, #about-apply { scroll-margin-top: 90px; }   /* clear of the sticky tabs */
+#about-pay, #about-apply { scroll-margin-top: calc(var(--tabs-h, 78px) + 12px); }   /* clear of the sticky tabs */
 .links { display: flex; flex-wrap: wrap; gap: 10px; }
 .btnlink { display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 999px;
            background: var(--accent); color: var(--accent-ink); font-weight: 600; text-decoration: none; }
@@ -364,7 +364,7 @@ footer .legal { display: grid; gap: 8px; }
   border: 1px solid currentColor; background: rgba(255, 255, 255, .12); color: inherit; }
 .share-box input:focus { outline: 2px solid currentColor; outline-offset: 1px; }
 @media print { .share-box { display: none; } }
-.tools-strip { margin: 0 0 24px; scroll-margin-top: 80px; }   /* clears the sticky tab bar */
+.tools-strip { margin: 0 0 24px; scroll-margin-top: calc(var(--tabs-h, 80px) + 12px); }   /* clears the sticky tab bar */
 .tools-strip h2 { margin: 0 0 10px; }
 .tools-strip ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); }
 .tools-strip a { display: flex; gap: 12px; align-items: flex-start; height: 100%; box-sizing: border-box; padding: 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); color: var(--ink); text-decoration: none; }
@@ -1604,8 +1604,11 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     if (t === "lfp") unstackDots();
     if (t === "map" && zoomLater && zoomLater === S.fips) zoomToCounty(zoomLater);
     writeHash();
-    if (scroll) window.scrollTo({ top: $("main").getBoundingClientRect().top + window.scrollY - $(".tabs").offsetHeight,
-                                  behavior: "smooth" });
+    // scroll "tab" (a tab button): only when the reader is below the tab bar, so a tab tapped while scrolled down
+    // opens at its top instead of wherever the old tab left off (often the footer on a phone; 11/23/2026)
+    const top = $("main").getBoundingClientRect().top + window.scrollY - $(".tabs").offsetHeight;
+    if (scroll === true) window.scrollTo({ top, behavior: "smooth" });
+    else if (scroll === "tab" && window.scrollY > top + 1) window.scrollTo({ top });
   }
   // The address (Data_Forecasts/ADDRESS_STANDARD.md): ?state=ms&county=28105#lfp. The page keeps it current
   // so a copied or shared link opens the same view; never rename these names (old forms stay readable).
@@ -1679,7 +1682,10 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
       " Updates weekly, on Thursday afternoon after the Drought Monitor releases its new map.";
     $("#foot-year").textContent = ct({ year: "numeric" });
     drawUS(); setupStateMap(); fillStates();
-    document.querySelectorAll(".tab").forEach(b => b.onclick = () => setTab(b.dataset.tab));
+    document.querySelectorAll(".tab").forEach(b => b.onclick = () => setTab(b.dataset.tab, "tab"));
+    // the tab bar's height (two rows on a phone), so jumps to the tools strip and About sections clear it
+    const tabsH = () => document.documentElement.style.setProperty("--tabs-h", $(".tabs").offsetHeight + "px");
+    tabsH(); window.addEventListener("resize", tabsH);
     document.querySelectorAll("a[data-tab]").forEach(a => a.onclick = ev => { ev.preventDefault(); setTab(a.dataset.tab, true); });
     document.querySelectorAll("#about a[data-goto], #cows > div a[data-goto]").forEach(a => a.onclick = ev => { ev.preventDefault();
       setTab("about"); $("#" + a.dataset.goto).scrollIntoView({ block: "start" }); });
