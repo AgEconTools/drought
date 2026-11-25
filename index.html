@@ -22,7 +22,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!-- Visit counts: GoatCounter, no cookies and no personal data (Josh, 11/2026). It skips localhost. -->
 <script data-goatcounter="https://agecontools.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
-<meta name="version" content="48">
+<meta name="version" content="49">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -300,6 +300,24 @@ table.pt .show-sm { display: none; }
 .chart .cross line { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 3 3; }
 .chart .dot { fill: var(--ink); stroke: var(--surface); stroke-width: 2; }
 .chart:focus:not(:focus-visible), .strip:focus:not(:focus-visible) { outline: none; }   /* a mouse click or tap focuses the chart too; the ring is for the keyboard */
+/* Share this chart (Josh, 11/24/2026; the cattle prices page's design): the button under each chart and map, and the picture's panel */
+.chart-share { display: grid; justify-items: end; gap: 10px; margin-top: 4px; }
+.mapsvg:empty ~ .chart-share { display: none; }          /* a map not drawn yet: nothing to share */
+.cs-btn { display: inline-flex; align-items: center; gap: 6px; font: 600 13px/1 var(--body); color: var(--ink-2); background: transparent;
+          border: 1px solid var(--rule); border-radius: 999px; padding: 7px 12px; cursor: pointer; }
+.cs-btn:hover { color: var(--ink); border-color: var(--muted); }
+.cs-btn[disabled] { cursor: progress; }
+.cs-btn svg { width: 14px; height: 14px; flex: none; }
+.cs-btn:focus-visible, .cs-act:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.cs-panel { justify-self: stretch; display: grid; gap: 10px; padding: 12px; border: 1px solid var(--rule); border-radius: var(--r); background: var(--bg); }
+.cs-panel[hidden] { display: none; }
+.cs-img { display: block; width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 6px; background: #fff; }
+.cs-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.cs-act { font: 600 14px/1 var(--body); padding: 10px 16px; border-radius: 999px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); cursor: pointer; }
+.cs-act:first-child { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.cs-panel .note { margin: 0; }
+.cs-msg:empty { display: none; }
+@media print { .chart-share { display: none; } }
 .readout { font-size: 14px; min-height: 22px; font-variant-numeric: tabular-nums; color: var(--ink-2); }
 .seg { display: inline-flex; flex-wrap: nowrap; border: 1px solid var(--rule); border-radius: 999px; overflow: hidden; }
 .seg button { border: 0; background: var(--surface); padding: 6px 12px; cursor: pointer; font-size: 13.5px; color: var(--ink-2); white-space: nowrap; }
@@ -936,6 +954,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     $("#z-in").onclick = () => zoomAt(1.6);
     $("#z-out").onclick = () => zoomAt(1 / 1.6);
     $("#z-fit").onclick = fit;
+    shareAfter(svg, svg.nextElementSibling, stateMapRedraw);      // after the "Drag to move" note
   }
   function drawState() {
     const g = SGEO[S.st], svg = $("#statemap");
@@ -1067,12 +1086,12 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     </div>`;
   }
   // the strip's weeks, for its keyboard readout and table: [date, worst category, in the grazing period]
-  let STRIP = [];
+  let STRIP = [], STRIPW = [];      // STRIPW: each week's category, place in the grazing period and month label (the picture)
   function strip(c, p) {
     const L = lfpOf(S.st, lfpYear()); const [first, n] = L.weeks;
     const d0 = parse(first), s = parse(p.s), e = parse(p.e);
     let cells = "", labs = "", months_ = 0;
-    STRIP = [];
+    STRIP = []; STRIPW = [];
     for (let i = 0; i < n; i++) {
       const d = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + 7 * i);
       const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 6);
@@ -1085,6 +1104,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
         full ? "" : overlap ? " (partly in grazing period)" : " (outside grazing period)"}`;
       STRIP.push([`${MON[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`,
         k == null ? "No map" : k < 0 ? "No drought" : `${cat(k).code} ${cat(k).name}`, where]);
+      STRIPW.push({ k, kind: full ? "full" : overlap ? "part" : "out", mon: d.getDate() <= 7 ? MON3[d.getMonth()] : "", jan: d.getMonth() === 0 && d.getDate() <= 7 ? d.getFullYear() : 0 });
       cells += `<span class="${full ? "" : overlap ? "part" : "out"}" style="background:${k == null ? "transparent" : cat(k).color}" title="${lab}"></span>`;
       if (d.getDate() <= 7) months_++;
       labs += `<span class="${months_ % 2 ? "" : "alt"}">${d.getDate() <= 7 ? MON3[d.getMonth()] : ""}</span>`;
@@ -1287,6 +1307,8 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
             only partly overlap it: they count for D3 or D4 at any time, but not for the 4-week counts.</p></div>
       </div>`);
     wireStrip();
+    STRIPINFO = { t: sel.t, office: c.o.length > 1 ? sel.office : "", s: sel.s, e: sel.e, yr, from: L.weeks[0] };
+    const sn = $("#strip"); if (sn) shareAfter(sn, sn.parentElement.lastElementChild, stripRedraw);   // after the strip's note
     box.querySelectorAll("table.pt tbody tr").forEach(tr => {
       const choose = () => { S.picks[yr] = { t: tr.dataset.t, o: tr.dataset.o }; store.set("picks", JSON.stringify(S.picks)); drawLFP(); };
       tr.onclick = choose;
@@ -1363,8 +1385,9 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     for (const i of cand) if (out.every(k => Math.abs(k - i) > 104)) out.push(i);
     return out;
   }
-  function cowChart(id, vals, from, label) {
-    const { W, H, L, R, T, B } = chartDims();
+  // dims: the picture's own size (Share this chart), with every year tick and peak label a phone drops
+  function cowChart(id, vals, from, label, dims) {
+    const { W, H, L, R, T, B } = dims || chartDims();
     const weeks = BEEF.weeks.slice(from), vs = vals.slice(from), n = weeks.length;
     const x = i => L + (W - L - R) * i / Math.max(1, n - 1), y = v => T + (H - T - B) * (1 - v / 100), base = y(0);
     const area = idx => {                      // one closed path per run of mapped weeks
@@ -1532,8 +1555,241 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     if (!BEEF) return;
     wireChart("ch-us", BEEF.us[CW.measure], from);
     if (stB && BEEF.states[S.st]) wireChart("ch-st", BEEF.states[S.st][CW.measure], from);
+    const share = (id, who, vals) => { const svg = $("#" + id); svg._info = { who, measure: CW.measure, from }; shareAfter(svg, svg, cowRedraw(id, vals, from)); };
+    share("ch-us", "U.S.", BEEF.us[CW.measure]);
+    if (stB && BEEF.states[S.st]) share("ch-st", m.states[S.st], BEEF.states[S.st][CW.measure]);
   }
   window.matchMedia("(max-width: 640px)").addEventListener("change", () => { if (S.tab === "cows" && BEEF) drawCows(); });
+
+  /* ---------- Share this chart (Josh, 11/24/2026; the cattle prices page's design, so the AgEconTools dashboards match) ---------- */
+  // A button under each chart and map makes a picture of it to paste into a slide, document or text message: the chart
+  // drawn again off screen at a fixed width (800 px, saved at 2x: 1600 px wide, so lines and type hold up on a slide)
+  // in the light colors whatever the page's theme, with a title naming what it shows, a subtitle, its legend, the
+  // Source line with the Drought Monitor map's date, any footnote, and the page's name and address. The phone's share
+  // sheet where it takes files, Copy image where the clipboard takes pictures, Download always; the picture shows in
+  // the panel too, to press and hold where a browser blocks all three.
+  const SHOT = { W: 800, PAD: 28, H: 450, MAPH: 520, SCALE: 2 };
+  // the line under the Source line, Josh's wording (11/24/2026): "Map:" on the maps, which aren't charts (Josh, 11/24/2026), else "Chart:"
+  const SHOT_SITE = "Beef Cattle Drought Tracker Dashboard, Mississippi State University Extension (agecontools.github.io/drought)";
+  const DM_CREDIT = "U.S. Drought Monitor (National Drought Mitigation Center at the University of Nebraska-Lincoln, USDA and NOAA)";
+  const shotSource = more => `Source: ${DM_CREDIT}${more ? `; ${more}` : ""}. Drought Monitor map of ${fmt(US.meta.map_date)}.`;
+  const shotPlace = () => S.fips && cname(S.fips) !== US.meta.states[S.st] ? `${cname(S.fips)}, ${US.meta.states[S.st]}` : US.meta.states[S.st];
+  const WORST = "Each county is colored by the worst category on any part of it, the rating the Livestock Forage Disaster Program (LFP) uses, so a county can look worse here than on the official map.";
+  // the map legend on the page (None, D0-D4), for the maps and the weekly strip
+  const pageLegend = () => [...document.querySelectorAll("#legend li")].map(li => ({ color: li.querySelector(".sw").style.background, text: li.textContent.trim() }));
+  let STRIPINFO = null;      // the pasture type the weekly strip on the LFP tab is drawn for
+  const cowSpec = h => { const i = h._info, y0 = BEEF.weeks[i.from].slice(0, 4), y1 = US.meta.map_date.slice(0, 4), us = i.who === "U.S.";
+    return { title: `Share of ${i.who} beef cows ${MEASURES[i.measure]}, ${y0 === y1 ? y1 : `${y0}-${y1}`}`,
+      sub: `Percent of ${us ? "U.S." : i.who} beef cows ${MEASURES[i.measure]}, weekly. Each county's beef cows count by the share of its land in ${MEASURE_BTN[i.measure]}${us ? "; 48 contiguous states and D.C." : "."}`,
+      legend: [{ color: "var(--accent)", text: y1 }, ...(y0 === y1 ? [] : [{ color: "var(--area)", text: +y1 - 1 > +y0 ? `${y0}-${+y1 - 1}` : y0 }])],
+      note: "Each week is weighted by the most recent Census of Agriculture at that time.",
+      source: shotSource(`beef cows: USDA NASS, Census of Agriculture`) }; };
+  // one title rule per chart, keyed by the chart's id: a new chart needs one
+  const SHARE_SPECS = {
+    "usmap": () => ({ map: true, title: "Worst drought category on any part of each county, contiguous U.S.",
+      sub: `Weekly U.S. Drought Monitor, the map of ${fmt(US.meta.map_date)}. ${WORST}`, legend: pageLegend() }),
+    "statemap": () => ({ map: true, title: `Worst drought category on any part of each county, ${US.meta.states[S.st]}`,
+      sub: `Weekly U.S. Drought Monitor, the map of ${fmt(US.meta.map_date)}.${S.fips ? ` Outlined: ${cname(S.fips)}.` : ""} ${WORST}`, legend: pageLegend() }),
+    "strip": () => { const p = STRIPINFO;
+      return { title: `Worst drought category each week, ${shotPlace()}`,
+        sub: `Weekly U.S. Drought Monitor, ${span(p.from, US.meta.map_date).replace(" – ", " to ")}, against the ${p.yr} LFP grazing period for ${p.t.toLowerCase()}${p.office ? ` (${p.office} FSA office)` : ""}: ${span(p.s, p.e).replace(" – ", " to ")}.`,
+        legend: pageLegend(),
+        note: "Tall bars are weeks inside the grazing period. Middle bars only partly overlap it: they count for D3 or D4 at any time, but not for the 4-week counts. Short bars are outside it.",
+        source: shotSource("grazing periods: USDA FSA") }; },
+    "ch-us": cowSpec,
+    "ch-st": cowSpec,
+  };
+  // how each chart draws itself again for the picture (host._redraw), whole and without tap-to-pick
+  const mapPaths = paths => Object.keys(paths).map(f => { const c = US.counties[f];
+    return `<path class="c" d="${paths[f]}" fill="${cat(c ? c[0] : -1).color}"></path>`; }).join("");
+  const usMapRedraw = h => { h.innerHTML = `<svg class="mapsvg" viewBox="${$("#usmap").getAttribute("viewBox")}"><g>${mapPaths(GEO.counties)}</g>` +
+    `<g>${Object.values(GEO.outlines).map(d => `<path class="stl" d="${d}"></path>`).join("")}</g></svg>`; };
+  const stateMapRedraw = h => { const g = SGEO[S.st], d = S.fips && g.counties[S.fips] || "";       // the whole state, not the zoomed view
+    h.innerHTML = `<svg class="mapsvg" viewBox="0 0 ${g.w} ${g.h}"><g>${mapPaths(g.counties)}</g><path class="stl" d="${g.outline}"></path>` +
+      (d ? `<path class="hi2" d="${d}"></path><path class="hi" d="${d}"></path>` : "") + "</svg>"; };
+  // the weekly strip is HTML on the page; the picture draws it in SVG, every month labeled
+  const stripRedraw = (h, ht) => {
+    const W = h.clientWidth, n = STRIPW.length, gap = 2, cw = (W - gap * (n - 1)) / n;
+    const full = Math.min(110, Math.max(60, ht - 30)), tall = { full, part: Math.round(full * 20 / 26), out: Math.round(full * 14 / 26) };
+    const op = { full: 1, part: .7, out: .28 };      // as .strip span.part and .out on the page
+    let bars = "", labs = "";
+    STRIPW.forEach((w, i) => { const x = (i * (cw + gap)).toFixed(1), t = tall[w.kind];
+      if (w.k != null) bars += `<rect x="${x}" y="${full - t}" width="${cw.toFixed(1)}" height="${t}" rx="2" fill="${cat(w.k).color}" opacity="${op[w.kind]}"></rect>`;
+      if (w.mon) labs += `<text class="ax" x="${x}" y="${full + 18}">${w.mon}</text>`; });
+    h.innerHTML = `<svg class="chart" viewBox="0 0 ${W} ${full + 24}">${bars}${labs}</svg>`;
+  };
+  const cowRedraw = (id, vals, from) => (h, ht) => {
+    h.innerHTML = cowChart(`${id}-pic`, vals, from, "", { W: h.clientWidth, H: ht, L: 46, R: 96, T: 20, B: 32 });
+    h.querySelectorAll(".cross, .hit").forEach(n => n.remove());
+  };
+  // the light theme's colors (the plain :root rules, outside the dark-mode ones), set on the chart drawn for the picture
+  const lightTokens = () => {
+    const t = {};
+    for (const sh of document.styleSheets) {
+      let rules; try { rules = sh.cssRules; } catch (e) { continue; }
+      for (const r of rules) if (r.selectorText === ":root") for (const p of r.style) if (p.startsWith("--")) t[p] = r.style.getPropertyValue(p).trim();
+    }
+    return t;
+  };
+  const tok = (T, v) => { const m = /var\((--[\w-]+)\)/.exec(v || ""); return m ? T[m[1]] : v; };
+  // the page's own fonts inside the picture, so it draws in them (a picture can't reach the page's fonts)
+  let SHOT_FONTS = null;
+  const shotFonts = async () => {
+    if (SHOT_FONTS != null) return SHOT_FONTS;
+    const face = async (fam, file, wt) => {
+      const b = await (await fetch(`fonts/${file}`)).blob();
+      const u = await new Promise((ok, no) => { const f = new FileReader(); f.onload = () => ok(f.result); f.onerror = no; f.readAsDataURL(b); });
+      return `@font-face{font-family:"${fam}";font-weight:${wt};src:url(${u.replace(/^data:[^;,]*/, "data:font/woff2")}) format("woff2")}`;
+    };
+    try { SHOT_FONTS = (await Promise.all([face("Bitter", "bitter-latin-700-normal.woff2", 700), face("Public Sans", "public-sans-latin-400-normal.woff2", 400),
+      face("Public Sans", "public-sans-latin-600-normal.woff2", 600), face("Public Sans", "public-sans-latin-700-normal.woff2", 700)])).join(""); }
+    catch (e) { SHOT_FONTS = ""; }        // Georgia and Arial then
+    return SHOT_FONTS;
+  };
+  const xesc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const SHOT_FONT = { title: ['700 22px Bitter, Georgia, serif', 22, 28], sub: ['400 14px "Public Sans", Arial, sans-serif', 14, 20],
+    leg: ['400 13.5px "Public Sans", Arial, sans-serif', 13.5, 22], src: ['400 11.5px "Public Sans", Arial, sans-serif', 11.5, 16],
+    site: ['600 11.5px "Public Sans", Arial, sans-serif', 11.5, 16] };
+  const measure = document.createElement("canvas").getContext("2d");
+  const wrapText = (text, font, w) => {
+    measure.font = font; const out = []; let cur = "";
+    for (const wd of String(text).split(/\s+/).filter(Boolean)) {
+      const t = cur ? `${cur} ${wd}` : wd;
+      if (cur && measure.measureText(t).width > w) { out.push(cur); cur = wd; } else cur = t;
+    }
+    if (cur) out.push(cur);
+    return out;
+  };
+  const SHOT_PROPS = ["display", "fill", "fill-opacity", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap", "stroke-linejoin", "stroke-opacity",
+    "opacity", "visibility", "paint-order", "vector-effect", "font-family", "font-size", "font-weight", "font-variant-numeric"];
+  async function chartPicture(host, spec) {
+    const { W, PAD, SCALE } = SHOT, IW = W - 2 * PAD, T = lightTokens();
+    await Promise.all(["700 22px Bitter", '400 14px "Public Sans"', '600 14px "Public Sans"'].map(f => document.fonts.load(f))).catch(() => {});
+    const parts = [], fam = { title: "Bitter, Georgia, serif", body: '"Public Sans", Arial, sans-serif' };
+    const lines = (key, text, y, color, weight) => {
+      const [font, size, lh] = SHOT_FONT[key];
+      for (const ln of wrapText(text, font, IW)) {
+        parts.push(`<text x="${PAD}" y="${(y + size).toFixed(1)}" font-family="${xesc(key === "title" ? fam.title : fam.body)}" font-size="${size}" font-weight="${weight}" fill="${color}">${xesc(ln)}</text>`);
+        y += lh;
+      }
+      return y;
+    };
+    let y = PAD;
+    y = lines("title", spec.title, y, T["--ink"], 700) + 2;
+    y = lines("sub", spec.sub, y, T["--ink-2"], 400) + 8;
+    // the legend: color squares, in the light colors (the page's own map legend, or the chart's two colors)
+    if (spec.legend && spec.legend.length) {
+      const [font, size, lh] = SHOT_FONT.leg; measure.font = font;
+      let x = PAD;
+      for (const it of spec.legend) {
+        const w = 14 + 7 + measure.measureText(it.text).width;
+        if (x > PAD && x + w > W - PAD) { x = PAD; y += lh; }
+        const cy = y + lh / 2;
+        parts.push(`<rect x="${x}" y="${cy - 7}" width="14" height="14" rx="3" fill="${tok(T, it.color)}" stroke="rgba(0,0,0,.18)" stroke-width="1"/>`);
+        parts.push(`<text x="${x + 21}" y="${(cy + size * 0.36).toFixed(1)}" font-family="${xesc(fam.body)}" font-size="${size}" fill="${T["--ink-2"]}">${xesc(it.text)}</text>`);
+        x += w + 18;
+      }
+      y += lh + 6;
+    }
+    // the footer first, so a chart can take the height left to make about 16:9
+    const foot = [];
+    const fy = (key, text, color, weight) => { const n = wrapText(text, SHOT_FONT[key][0], IW).length; foot.push([key, text, color, weight]); return n * SHOT_FONT[key][2]; };
+    let fh = 14 + fy("src", spec.source || shotSource(), T["--ink-2"], 400);
+    if (spec.note) fh += fy("src", spec.note, T["--ink-2"], 400);
+    fh += 4 + fy("site", `${spec.map ? "Map" : "Chart"}: ${SHOT_SITE}`, T["--muted"], 600);
+    // the chart, drawn again off screen at the picture's width in the light colors, its styles written onto it
+    const off = document.createElement("div");
+    off.setAttribute("aria-hidden", "true");
+    off.setAttribute("style", `position:fixed;left:-10000px;top:0;width:${IW}px;` + Object.entries(T).map(([k, v]) => `${k}:${v}`).join(";"));
+    document.body.append(off);
+    let svgXml, dh;
+    try {
+      host._redraw(off, Math.max(200, SHOT.H - y - fh - PAD));
+      const svg = off.querySelector("svg");
+      if (!svg) throw new Error("no chart");
+      const vb = svg.viewBox.baseVal;
+      let dw = IW; dh = vb.height * IW / vb.width;
+      if (dh > SHOT.MAPH) { dh = SHOT.MAPH; dw = vb.width * dh / vb.height; }      // a tall state: narrower, centered
+      const copy = svg.cloneNode(true), a = [svg, ...svg.querySelectorAll("*")], b = [copy, ...copy.querySelectorAll("*")];
+      a.forEach((n, i) => { const cs = getComputedStyle(n);
+        let st = SHOT_PROPS.map(p => `${p}:${cs.getPropertyValue(p)}`).join(";");
+        // map outlines keep their on-screen width at any zoom (non-scaling): the picture's pixels are SCALE times smaller
+        if (cs.getPropertyValue("vector-effect") === "non-scaling-stroke") st += `;stroke-width:${parseFloat(cs.getPropertyValue("stroke-width")) * SCALE}px`;
+        b[i].setAttribute("style", st); b[i].removeAttribute("class"); });
+      for (const k of ["role", "aria-label", "tabindex", "id", "height", "width"]) copy.removeAttribute(k);
+      for (const [k, v] of Object.entries({ x: PAD + (IW - dw) / 2, y, width: dw, height: dh, overflow: "visible" })) copy.setAttribute(k, v);
+      svgXml = new XMLSerializer().serializeToString(copy);
+    } finally { off.remove(); }
+    y += dh + 14;
+    parts.push(`<line x1="${PAD}" x2="${W - PAD}" y1="${y}" y2="${y}" stroke="${T["--rule"]}" stroke-width="1"/>`);
+    y += 10;
+    for (const [key, text, color, weight] of foot) y = lines(key, text, y, color, weight);
+    const H = Math.ceil(y + PAD - 8);
+    const xml = `<svg xmlns="http://www.w3.org/2000/svg" width="${W * SCALE}" height="${H * SCALE}" viewBox="0 0 ${W} ${H}">` +
+      `<style>${await shotFonts()}</style><rect width="${W}" height="${H}" fill="#ffffff"/>` +   // plain white, no band (Josh, 11/24/2026, on the cattle prices page)
+      parts.join("") + svgXml + "</svg>";
+    const url = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml" }));
+    try {
+      const img = new Image(); img.src = url; await img.decode();
+      const cv = document.createElement("canvas"); cv.width = W * SCALE; cv.height = H * SCALE;
+      const c = cv.getContext("2d");
+      c.drawImage(img, 0, 0, cv.width, cv.height);
+      await new Promise(r => setTimeout(r, 150));      // Safari can apply a picture's own fonts a moment after it loads: draw again
+      c.clearRect(0, 0, cv.width, cv.height); c.drawImage(img, 0, 0, cv.width, cv.height);
+      return await new Promise((ok, no) => cv.toBlob(bl => bl ? ok(bl) : no(new Error("no picture")), "image/png"));
+    } finally { URL.revokeObjectURL(url); }
+  }
+  const SHARE_ICON = '<svg aria-hidden="true" focusable="false" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M8 10V2M5 4.8 8 2l3 2.8M4.5 7H3.5v7h9V7h-1"/></svg>';
+  const htmlEl = (tag, attrs = {}, kids = []) => { const e = document.createElement(tag);
+    for (const k in attrs) { if (k === "text") e.textContent = attrs[k]; else if (k === "html") e.innerHTML = attrs[k]; else e.setAttribute(k, attrs[k]); }
+    e.append(...kids); return e; };
+  // the button and its panel for a chart (host, with host._redraw set), placed after `after`
+  function shareAfter(host, after, redraw) {
+    host._redraw = redraw;
+    // "Share this map" under the maps, which aren't charts (Josh, 11/24/2026)
+    host._label = host.classList.contains("mapsvg") ? "Share this map" : "Share this chart";
+    const btn = htmlEl("button", { type: "button", class: "cs-btn", "aria-expanded": "false", html: `${SHARE_ICON}<span>${host._label}</span>` });
+    const panel = htmlEl("div", { class: "cs-panel", hidden: "" });
+    const close = () => { panel.hidden = true; if (panel._url) URL.revokeObjectURL(panel._url); panel._url = null; panel.replaceChildren(); btn.setAttribute("aria-expanded", "false"); };
+    btn.addEventListener("click", () => { if (!panel.hidden) { close(); return; } openShare(host, btn, panel); });
+    panel.addEventListener("keydown", e => { if (e.key === "Escape") { close(); btn.focus(); } });
+    // the chart changed (a new state, county or week drawn; the picked county's outline moved): the picture is out of date
+    new MutationObserver(close).observe(host, { childList: true, subtree: true, attributeFilter: ["d"] });
+    panel._close = close;
+    after.after(htmlEl("div", { class: "chart-share", "data-chart": host.id }, [btn, panel]));
+  }
+  async function openShare(host, btn, panel) {
+    const make = SHARE_SPECS[host.id];
+    if (!make || !host._redraw) return;
+    const spec = make(host), lab = btn.querySelector("span");
+    btn.disabled = true; lab.textContent = "Making the picture…";
+    let blob;
+    try { blob = await chartPicture(host, spec); }
+    catch (e) { console.error(e); panel.replaceChildren(htmlEl("p", { class: "note", text: "The picture couldn't be made in this browser." })); panel.hidden = false; return; }
+    finally { btn.disabled = false; lab.textContent = host._label; }
+    const name = `drought-${spec.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 70).replace(/-$/, "")}-${US.meta.map_date}.png`;
+    const file = new File([blob], name, { type: "image/png" }), url = URL.createObjectURL(blob);
+    panel._url = url;
+    const msg = htmlEl("p", { class: "note cs-msg", role: "status" });
+    const act = (t, f) => { const b = htmlEl("button", { type: "button", class: "cs-act", text: t }); b.addEventListener("click", f); return b; };
+    let files = false; try { files = !!(navigator.canShare && navigator.canShare({ files: [file] })); } catch (e) { files = false; }
+    const share = files && act("Share…", async () => {
+      try { await navigator.share({ files: [file], title: spec.title }); }
+      catch (e) { if (!e || e.name !== "AbortError") msg.textContent = "Sharing didn't work here. Use Download, or press and hold the picture."; }
+    });
+    const copy = !!(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem) && act("Copy image", async () => {
+      try { await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]); msg.textContent = "Copied. Paste it into a slide, document or message."; }
+      catch (e) { msg.textContent = "This browser won't copy pictures. Use Download, or right-click the picture to copy it."; }
+    });
+    const dl = act("Download", () => { const a = htmlEl("a", { href: url, download: name }); document.body.append(a); a.click(); a.remove(); });
+    const coarse = matchMedia("(pointer: coarse)").matches;
+    const acts = (coarse ? [share, dl, copy] : [copy, dl, share]).filter(Boolean);
+    panel.replaceChildren(htmlEl("img", { class: "cs-img", src: url, alt: `${spec.title.replace(/\.$/, "")}. ${spec.sub}` }),
+      htmlEl("div", { class: "cs-acts" }, [...acts, act("Close", () => { panel._close(); btn.focus(); })]),
+      htmlEl("p", { class: "note cs-hint", text: coarse ? "Or press and hold the picture to save or copy it." : "Or right-click the picture to copy or save it." }), msg);
+    panel.hidden = false; btn.setAttribute("aria-expanded", "true");
+    acts[0].focus({ preventScroll: true });
+  }
 
   /* ---------- tally, pickers, tabs ---------- */
   function drawTally() {
@@ -1688,6 +1944,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
       " Updates weekly, on Thursday afternoon after the Drought Monitor releases its new map.";
     $("#foot-year").textContent = ct({ year: "numeric" });
     drawUS(); setupStateMap(); fillStates();
+    shareAfter($("#usmap"), $("#legend"), usMapRedraw);
     document.querySelectorAll(".tab").forEach(b => b.onclick = () => setTab(b.dataset.tab, "tab"));
     // the tab bar's height (two rows on a phone), so jumps to the tools strip and About sections clear it
     const tabsH = () => document.documentElement.style.setProperty("--tabs-h", $(".tabs").offsetHeight + "px");
@@ -1759,6 +2016,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     const t = e.target.closest('[role="tab"]');
     if (t) count(`${tool}: ${(t.querySelector(".l") || t).textContent.trim()}`);   // the long label where a tab has two
     if (e.target.closest("#share-view")) count(`${tool}: share`);
+    if (e.target.closest(".cs-btn")) count(`${tool}: share chart`);
   });
 })();
 </script>
