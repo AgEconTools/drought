@@ -22,7 +22,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!-- Visit counts: GoatCounter, no cookies and no personal data (Josh, 11/2026). It skips localhost. -->
 <script data-goatcounter="https://agecontools.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
-<meta name="version" content="50">
+<meta name="version" content="51">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -1908,8 +1908,11 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
       w.innerHTML = `A newer Drought Monitor map is out; see <a href="https://droughtmonitor.unl.edu" target="_blank" rel="noopener">droughtmonitor.unl.edu</a>.`;
     }
     const fy = lfpFirst(), fr = m.lfp.by[fy].rate;
-    if (fr) $("#foot-rate").textContent = `Payment estimates use ${fr.official ? "FSA's" : "an estimate of FSA's"} ${fy} monthly feed cost for an adult beef cow, ${money(fr.feed_cost)}` +
-      (fr.official ? "." : `: FSA hasn't posted the ${fy} rate, so this page uses the formula in the law, with USDA NASS corn prices. It matched FSA's 2022-2025 rates within a few cents.`) +
+    // where the figure comes from (a reviewer, 11/25/2026): FSA posts it only as a picture of a table, so a text search can't find it
+    if (fr) $("#foot-rate").innerHTML = `Payment estimates use ${fr.official ? "FSA's" : "an estimate of FSA's"} ${fy} monthly feed cost for an adult beef cow, ${money(fr.feed_cost)}` +
+      (fr.official ? `, from the payment rate table on FSA's <a href="${m.links.program}" target="_blank" rel="noopener">LFP program page</a>` +
+        ` (the table's "payment rate per head" column is this feed cost, before the 60%).`
+        : `: FSA hasn't posted the ${fy} rate, so this page uses the formula in the law, with USDA NASS corn prices. It matched FSA's 2022-2025 rates within a few cents.`) +
       ` LFP pays 60% of it, ${money(fr.month)} per cow a month` +
       (fr.sequester ? `, less ${seqEst(fr) ? "an estimated" : "the"} ${pctOf(fr.sequester)} sequestration cut (${money(fr.month * (1 - fr.sequester))}).` : ".");
     if (US.beef) $("#foot-cows").textContent += ` Counts from the ${US.beef.census} Census of Agriculture (USDA NASS).` +
