@@ -24,7 +24,7 @@
 <!-- Pinned to GoatCounter's versioned script with its integrity hash (security review, 11/25/2026): the browser
      refuses the file if it ever changes, so no outside code can run here. The Watchdog checks the hash daily. -->
 <script data-goatcounter="https://agecontools.goatcounter.com/count" async src="https://gc.zgo.at/count.v5.js" crossorigin="anonymous" integrity="sha384-atnOLvQb9t+jTSipvd75X2yginT4PjVbqDdlJAmxMm+wYElFmeR6EmLP5bYeoRVQ"></script>
-<meta name="version" content="51">
+<meta name="version" content="54">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
@@ -100,7 +100,6 @@ a { color: var(--link); }
           opacity: .8; margin: 0 0 4px; }
 h1 { font: 700 clamp(28px, 5vw, 40px)/1.08 var(--display); margin: 0; text-wrap: balance; }
 .asof { margin: 6px 0 0; font-size: 14px; opacity: .88; }
-.asof.edu { margin-top: 2px; font-size: 13px; }
 .asof a { color: inherit; }
 .asof.stale { display: inline-block; background: var(--warn-bg); color: var(--warn-ink); font-weight: 600; padding: 2px 8px; border-radius: 4px; opacity: 1; }
 .pickers { display: flex; gap: 10px; flex-wrap: wrap; min-width: 0; }
@@ -371,8 +370,8 @@ footer .legal { display: grid; gap: 8px; }
 }
 :root[data-theme="dark"] .legal .logo-light { display: none; }
 :root[data-theme="dark"] .legal .logo-dark { display: block; }
-/* Links between the MSU Extension tools (11/2026; ADDRESS_STANDARD.md): "More cattle tools" and
-   "Share this view" in the masthead, and the other tools at the top of the footer. Each project keeps
+/* Links between the MSU Extension tools (11/2026; ADDRESS_STANDARD.md): "Share" (this view) and
+   "More cattle tools" in the masthead, and the other tools at the top of the footer. Each project keeps
    its own copy; change all five together. */
 .asof.tools-line { margin-top: 6px; font-size: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; }
 .share-btn { all: unset; cursor: pointer; text-decoration: underline; color: inherit; font: inherit; }
@@ -407,16 +406,27 @@ footer .legal { display: grid; gap: 8px; }
 footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14.5px; color: var(--ink-2); max-width: 80ch; }
 .disc { border: 1px solid var(--rule); border-left: 4px solid var(--ink-2); background: var(--bg); border-radius: 8px;
         padding: 14px 16px; max-width: 80ch; display: grid; gap: 6px; }
+.disc { scroll-margin-top: calc(var(--tabs-h, 80px) + 12px); }   /* the header's Disclaimer link: clear of the sticky tabs */
 .disc h2 { font-size: 17px; }
 .disc p { margin: 0; font-size: 14.5px; }
 
 @media (max-width: 860px) {
   .statewrap { grid-template-columns: 1fr; }
+  /* tablets and phones turned sideways: the pickers under the title, not squeezing it into three lines (11/26/2026) */
+  .mast .wrap { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
   .mast .wrap { grid-template-columns: 1fr; }
   .picker, .picker select, .picker select.st { width: 100%; min-width: 0; }
-  .pickers { display: grid; grid-template-columns: 1fr; width: 100%; }
+  /* a compact masthead, as on the cattle prices page (Josh, 11/26/2026): State and County side by side, their labels
+     kept for screen readers (each menu already says "Pick a state" or "Pick a county" or shows the pick) */
+  .mast .wrap { padding-block: 14px 14px; gap: 10px; }
+  h1 { font-size: 24px; }   /* one line on a 375 px phone */
+  .asof { margin-top: 4px; font-size: 13px; }
+  .asof.tools-line { margin-top: 4px; font-size: 13px; }
+  .pickers { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; width: 100%; }
+  .picker label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .picker select { padding: 9px 30px 9px 12px; font-size: 15px; background-position: calc(100% - 17px) 50%, calc(100% - 11px) 50%; }
   .stat b { font-size: 19px; }
   .tally .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
   .tally .lead { grid-column: 1 / -1; }
@@ -444,8 +454,10 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
       <h1>Beef Cattle Drought Tracker</h1>
       <p class="asof" id="asof">Loading this week's map…</p>
       <p class="asof stale" id="stale" hidden></p>
-      <p class="asof edu">For educational use only. <a href="#disclaimer">Read the disclaimer</a>.</p>
-      <p class="asof tools-line"><a href="#more-tools">More cattle tools</a><button type="button" class="share-btn" id="share-view">Share this view</button><span class="sr-only" role="status" id="share-msg"></span></p>
+      <!-- Disclaimer, Share, More cattle tools, in one row as on the cattle prices page (Josh, 11/26/2026; the "For educational
+           use only" line folded in here, one line fewer on a phone; the full text is in the footer box). "Share" shares this
+           view; its name for screen readers says so -->
+      <p class="asof tools-line"><a href="#disclaimer" id="to-disc">Disclaimer</a><button type="button" class="share-btn" id="share-view" aria-label="Share this view">Share</button><a href="#more-tools">More cattle tools</a><span class="sr-only" role="status" id="share-msg"></span></p>
       <div class="share-box" id="share-box" hidden><label for="share-url">Copy this link:</label><input id="share-url" type="text" readonly spellcheck="false"><button type="button" class="share-btn" id="share-close">Close</button></div>
     </div>
     <div class="pickers">
@@ -1981,7 +1993,7 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
   const btn = document.getElementById("share-view"), msg = document.getElementById("share-msg");
   if (btn) {
     const say = t => { msg.textContent = t; btn.textContent = t; clearTimeout(btn._t);
-      btn._t = setTimeout(() => { btn.textContent = "Share this view"; msg.textContent = ""; }, 2500); };
+      btn._t = setTimeout(() => { btn.textContent = "Share"; msg.textContent = ""; }, 2500); };
     btn.addEventListener("click", async () => {
       const url = location.href;
       if (navigator.share && matchMedia("(pointer: coarse)").matches) {
@@ -2004,6 +2016,16 @@ footer ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 1
     field.addEventListener("focus", () => field.select());
     field.addEventListener("keydown", (e) => { if (e.key === "Escape") { hideBox(); btn.focus(); } });
   }
+  // The header's Disclaimer and More cattle tools links scroll to their box without changing the address (11/26/2026):
+  // a #disclaimer address dropped the tab, so Share right after sent a link to the map instead of the view on screen.
+  // Focus moves to the box, as following the link would, for keyboard and screen reader users.
+  document.querySelectorAll('.tools-line a[href^="#"]').forEach(a => a.addEventListener("click", e => {
+    const t = document.querySelector(a.getAttribute("href")); if (!t) return;
+    e.preventDefault();
+    t.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    if (!t.hasAttribute("tabindex")) t.setAttribute("tabindex", "-1");
+    t.focus({ preventScroll: true });
+  }));
   const STATE_TOOLS = ["cattleprices", "drought"];
   const carry = a => {
     let st = ""; try { st = (new URLSearchParams(location.search).get("state") || "").toLowerCase(); } catch (e) { /* no query */ }
